@@ -40,7 +40,18 @@ def _date_from_period(text: str, *, year: str):
     return dates[-1]
 
 
-def parse_dart_annual(raw:bytes,*,issuer_id:str,as_of:str,statement:str='CFS',with_audit:bool=False):
+def parse_dart_annual(raw:bytes,*,issuer_id:str,as_of:str,statement:str='CFS',
+                      with_audit:bool=False,
+                      fiscal_end_override:str|None=None,
+                      request_fs_div_bound:bool=False):
+    """Parse annual financial facts without inventing fields absent from DART.
+
+    Official fnlttSinglAcntAll rows do not provide fs_div or thstrm_dt.
+    fs_div is a *request* parameter. Only callers who explicitly bound the
+    request to CFS/OFS may accept absent response fs_div. Fiscal-end date must
+    be separately supplied and crosschecked against business year; supplying
+    this date is NOT issuer, audit, rights or publisher authentication.
+    """
     validate_entity('KR',issuer_id)
     cutoff=parse_date(as_of)
     obj=bounded_json(raw)
@@ -51,13 +62,28 @@ def parse_dart_annual(raw:bytes,*,issuer_id:str,as_of:str,statement:str='CFS',wi
         raise ValueError('DART_ROWS_INVALID')
     if statement not in ('CFS','OFS'):
         raise ValueError('STATEMENT_INVALID')
+    if type(request_fs_div_bound) is not bool:
+        raise ValueError('DART_REQUEST_BOUND_FLAG_INVALID')
+    if fiscal_end_override is not None:
+        override_end=parse_date(fiscal_end_override)
+    else:
+        override_end=None
     candidates=[];src=digest(raw)
     for item in items:
         if type(item) is not dict:
             raise ValueError('DART_ROW_INVALID')
         if item.get('corp_code')!=issuer_id:
             raise ValueError('DART_CORP_MISMATCH')
-        if item.get('reprt_code')!='11011' or item.get('fs_div')!=statement:
+        if item.get('reprt_code')!='11011':
+            continue
+        reported_scope=item.get('fs_div')
+        if reported_scope is None:
+            if not request_fs_div_bound:
+                raise ValueError('DART_FS_DIV_REQUEST_SCOPE_NOT_BOUND')
+        elif reported_scope!=statement:
+            # A response row cannot silently override the request scope.
+            if request_fs_div_bound:
+                raise ValueError('DART_FS_DIV_REQUEST_RESPONSE_MISMATCH')
             continue
         aid=item.get('account_id')
         if aid not in ACCOUNTS:
@@ -68,7 +94,17 @@ def parse_dart_annual(raw:bytes,*,issuer_id:str,as_of:str,statement:str='CFS',wi
         year=item.get('bsns_year')
         if type(year) is not str or not _YEAR.fullmatch(year):
             raise ValueError('DART_YEAR_INVALID')
-        end=_date_from_period(item.get('thstrm_dt'),year=year)
+        period_text=item.get('thstrm_dt')
+        if period_text is None:
+            if override_end is None:
+                raise ValueError('DART_FISCAL_END_EXPLICIT_SOURCE_REQUIRED')
+            if override_end.year!=int(year):
+                raise ValueError('DART_FISCAL_YEAR_MISMATCH')
+            end=override_end
+        else:
+            end=_date_from_period(period_text,year=year)
+            if override_end is not None and end!=override_end:
+                raise ValueError('DART_FISCAL_END_SOURCE_CONFLICT')
         receipt=item.get('rcept_no')
         if type(receipt) is not str or not _RECEIPT.fullmatch(receipt):
             raise ValueError('DART_RECEIPT_INVALID')
@@ -78,6 +114,10 @@ def parse_dart_annual(raw:bytes,*,issuer_id:str,as_of:str,statement:str='CFS',wi
         if item.get('currency')!='KRW':
             raise ValueError('DART_CURRENCY_NOT_EXPLICIT_KRW')
         val=item.get('thstrm_amount')
+        if val is None or val == '':
+            # Official DART can return empty accounts. Missing is not zero.
+            # Do not fabricate a value; omit only that unsupported observation.
+            continue
         if type(val) is not str or not _NUMBER.fullmatch(val):
             raise ValueError('DART_AMOUNT_INVALID')
         candidates.append(observation(
