@@ -146,7 +146,7 @@ def main(argv=None):
                 raise ValueError('OUTPUT_SHA_INTEGRITY_MISMATCH')
     except (ValueError,KeyError,OSError) as exc:
         p.error(str(exc))
-    print(json.dumps({'guard':report['guard'],'artifacts':r},ensure_ascii=False))
+    print(json.dumps({'guard':report['guard'],'artifacts':r,'receipt_sha256':integrity['receipt_sha256'],'receipt_status':integrity['status']},ensure_ascii=False))
     return 0
 
 if __name__=='__main__':raise SystemExit(main())
