@@ -52,6 +52,12 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'P85_EXE_SELFTEST_FAILED' }
             $selfObj = $self | ConvertFrom-Json
             if ($selfObj.consumer_release_ready -ne $false -or $selfObj.status -ne 'STAGED_OFFLINE_ONLY') { throw 'P85_SALE_GATE_BYPASSED' }
+            # Launch the actual frozen Tk GUI, validate required controls and
+            # exit without file selection, provider traffic or user data.
+            $gui = & $exe --gui-smoke
+            if ($LASTEXITCODE -ne 0) { throw 'P95_FROZEN_TK_GUI_UNAVAILABLE' }
+            $guiObj = $gui | ConvertFrom-Json
+            if ($guiObj.status -ne 'TK_WINDOW_RENDERED_NO_NETWORK' -or $guiObj.required_control_count -lt 11 -or $guiObj.missing_controls -ne 0 -or $guiObj.network_requests -ne 0 -or $guiObj.consumer_release_ready -ne $false -or $guiObj.critical_actions_reachable -ne $true -or $guiObj.scroll_canvas_initialized -ne $true) { throw 'P95_FROZEN_TK_GUI_CONTROLS_FAILED' }
             $dir = Join-Path $env:RUNNER_TEMP 'kuodra-p85-staged'
             New-Item -ItemType Directory -Path $dir -Force | Out-Null
             & $exe --offline-review --country KR --issuer-id 99998888 --as-of 2025-11-12 --source fixtures/synthetic/kr_dart.json --output-dir $dir --name smoke
