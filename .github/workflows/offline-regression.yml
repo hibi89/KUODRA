@@ -71,9 +71,14 @@ jobs:
           $zip = Join-Path $env:RUNNER_TEMP 'KUODRA_P85_STAGING_NOT_FOR_SALE.zip'
           $extract = Join-Path $env:RUNNER_TEMP 'KUODRA_한글_검증'
           $protected = Join-Path $env:RUNNER_TEMP 'customer-original-protected.txt'
+          $manifest = Join-Path $env:RUNNER_TEMP 'kuodra-p95-unsigned-integrity.json'
           Set-Content -LiteralPath $protected -Value 'DO_NOT_DELETE' -NoNewline -Encoding utf8
+          python -m kuodra.portable_manifest create 'dist/KUODRA' $manifest
+          if ($LASTEXITCODE -ne 0) { throw 'PORTABLE_MANIFEST_CREATE_FAILED' }
           Compress-Archive -Path 'dist/KUODRA' -DestinationPath $zip -Force
           Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force
+          python -m kuodra.portable_manifest verify (Join-Path $extract 'KUODRA') $manifest
+          if ($LASTEXITCODE -ne 0) { throw 'PORTABLE_MANIFEST_VERIFY_FAILED' }
           $exe = Join-Path $extract 'KUODRA/KUODRA.exe'
           if (-not (Test-Path -LiteralPath $exe)) { throw 'PORTABLE_RELOCATE_EXE_MISSING' }
           $pathBefore = $env:PATH
