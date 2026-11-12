@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from contextlib import redirect_stdout
+from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
 
@@ -132,6 +135,68 @@ class OfficialDartShapeAcceptance(TestCase):
                 as_of='2025-11-12',owner_consent=True,dart_api_key=KEY,
                 dart_business_year='2024',
                 transport=lambda req,t:(raw,'application/json'))
+
+
+    def test_owner_local_documented_json_via_gui_korean(self):
+        from kuodra.gui import run_selected
+        with TemporaryDirectory() as td:
+            root=Path(td)
+            src=root/'local_dart_2024.json'
+            src.write_bytes(synthetic_documented_all_rows())
+            report,art=run_selected(
+                country='KR',issuer_id='99998888',as_of='2025-11-12',
+                source=str(src),output_dir=td,name='dart_owner_local',
+                dart_fiscal_end='2024-12-31',dart_scope_attested=True,
+                language='ko')
+            self.assertEqual(report['guard'],'HOLD')
+            self.assertFalse(report['source_verified'])
+            html=Path(art['html']['path']).read_text(encoding='utf8')
+            self.assertIn('lang="ko"',html)
+            self.assertIn('공시 원문 수치 근거',html)
+            self.assertFalse(report['rights_verified'])
+
+    def test_owner_local_documented_json_via_cli(self):
+        from kuodra.cli import main as offline_cli
+        with TemporaryDirectory() as td:
+            root=Path(td)
+            src=root/'dart.json'
+            src.write_bytes(synthetic_documented_all_rows())
+            out=StringIO()
+            with redirect_stdout(out):
+                rc=offline_cli([
+                    '--country','KR','--issuer-id','99998888',
+                    '--as-of','2025-11-12','--statement','CFS',
+                    '--source',str(src),'--output-dir',td,
+                    '--name','dart_cli','--dart-fiscal-end','2024-12-31',
+                    '--dart-request-scope-attested','--html-language','ko'
+                ])
+            self.assertEqual(rc,0)
+            result=json.loads((root/'dart_cli.json').read_text(encoding='utf8'))
+            self.assertEqual(result['guard'],'HOLD')
+            self.assertEqual(result['periods'],['2024-12-31'])
+            self.assertIn('공시 원문 수치 근거',
+                (root/'dart_cli.html').read_text(encoding='utf8'))
+
+    def test_local_gui_missing_owner_scope_refuses_without_faking(self):
+        from kuodra.gui import run_selected
+        with TemporaryDirectory() as td:
+            root=Path(td); src=root/'dart.json'
+            src.write_bytes(synthetic_documented_all_rows())
+            with self.assertRaisesRegex(ValueError,'DART_FS_DIV_REQUEST_SCOPE_NOT_BOUND'):
+                run_selected(country='KR',issuer_id='99998888',
+                    as_of='2025-11-12',source=str(src),
+                    output_dir=td,dart_fiscal_end='2024-12-31',
+                    dart_scope_attested=False)
+
+    def test_local_gui_owner_scope_still_requires_fiscal_end(self):
+        from kuodra.gui import run_selected
+        with TemporaryDirectory() as td:
+            root=Path(td);src=root/'dart.json'
+            src.write_bytes(synthetic_documented_all_rows())
+            with self.assertRaisesRegex(ValueError,'DART_FISCAL_PERIOD_MISSING'):
+                run_selected(country='KR',issuer_id='99998888',
+                    as_of='2025-11-12',source=str(src),output_dir=td,
+                    dart_scope_attested=True)
 
     def test_original_synthetic_period_scope_still_works(self):
         rows=parse_dart_annual(SYNTHETIC.read_bytes(),
