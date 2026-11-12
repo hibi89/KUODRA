@@ -1,0 +1,117 @@
+name: KUODRA offline core and country adapters
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main, develop]
+permissions:
+  contents: read
+concurrency:
+  group: kuodra-core-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  offline-tests:
+    name: offline ${{ matrix.os }} Python 3.11
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install statistical and PDF dependencies
+        run: python -m pip install -r requirements-ml.txt -r requirements-report.txt "scipy>=1.11,<2.0"
+      - name: Inspect installed dependency licenses (manual distribution clearance still required)
+        run: python -m kuodra.dependency_ledger --require-core
+      - name: Compile all modules
+        run: python -m compileall -q proofinvest kuodra tests
+      - name: Run legacy KIC and new KUODRA regressions
+        run: python -m unittest discover -s tests -v
+      - name: Install PyInstaller for unsigned staging only (Windows)
+        if: matrix.os == 'windows-latest'
+        run: python -m pip install "pyinstaller>=6.10,<7"
+      - name: Build Windows portable folder (not installer or approved sale)
+        if: matrix.os == 'windows-latest'
+        run: pyinstaller --noconfirm --clean --onedir --name KUODRA --paths . desktop/entry.py
+      - name: Execute staged Windows EXE with Python PATH excluded
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'dist/KUODRA/KUODRA.exe').Path
+          $oldPath = $env:PATH
+          $env:PATH = (($oldPath -split ';') | Where-Object { $_ -notmatch 'Python|hostedtoolcache' }) -join ';'
+          try {
+            $self = & $exe --self-test
+            if ($LASTEXITCODE -ne 0) { throw 'P85_EXE_SELFTEST_FAILED' }
+            $selfObj = $self | ConvertFrom-Json
+            if ($selfObj.consumer_release_ready -ne $false -or $selfObj.status -ne 'STAGED_OFFLINE_ONLY') { throw 'P85_SALE_GATE_BYPASSED' }
+            # Launch the actual frozen Tk GUI, validate required controls and
+            # exit without file selection, provider traffic or user data.
+            $gui = & $exe --gui-smoke
+            if ($LASTEXITCODE -ne 0) { throw 'P95_FROZEN_TK_GUI_UNAVAILABLE' }
+            $guiObj = $gui | ConvertFrom-Json
+            if ($guiObj.status -ne 'TK_WINDOW_RENDERED_NO_NETWORK' -or $guiObj.required_control_count -lt 11 -or $guiObj.missing_controls -ne 0 -or $guiObj.network_requests -ne 0 -or $guiObj.consumer_release_ready -ne $false -or $guiObj.critical_actions_reachable -ne $true -or $guiObj.scroll_canvas_initialized -ne $true) { throw 'P95_FROZEN_TK_GUI_CONTROLS_FAILED' }
+            $dir = Join-Path $env:RUNNER_TEMP 'kuodra-p85-staged'
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            & $exe --offline-review --country KR --issuer-id 99998888 --as-of 2025-11-12 --source fixtures/synthetic/kr_dart.json --output-dir $dir --name smoke
+            if ($LASTEXITCODE -ne 0) { throw 'P85_EXE_OFFLINE_REVIEW_FAILED' }
+            & $exe --verify-export $dir smoke
+            if ($LASTEXITCODE -ne 0) { throw 'P85_EXE_VERIFY_FAILED' }
+          }
+          finally {
+            $env:PATH = $oldPath
+          }
+          python -c "import json,os; p=os.path.join(os.environ['RUNNER_TEMP'],'kuodra-p85-staged','smoke.json'); r=json.load(open(p,encoding='utf8')); assert r['guard']=='HOLD' and r['trade_executed'] is False and r['rights_verified'] is False"
+
+
+      - name: Verify portable ZIP unpack, Korean path, and source preservation
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:RUNNER_TEMP 'KUODRA_P85_STAGING_NOT_FOR_SALE.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'KUODRA_한글_검증'
+          $protected = Join-Path $env:RUNNER_TEMP 'customer-original-protected.txt'
+          $manifest = Join-Path $env:RUNNER_TEMP 'kuodra-p95-unsigned-integrity.json'
+          Set-Content -LiteralPath $protected -Value 'DO_NOT_DELETE' -NoNewline -Encoding utf8
+          python -m kuodra.portable_manifest create 'dist/KUODRA' $manifest
+          if ($LASTEXITCODE -ne 0) { throw 'PORTABLE_MANIFEST_CREATE_FAILED' }
+          Compress-Archive -Path 'dist/KUODRA' -DestinationPath $zip -Force
+          Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force
+          python -m kuodra.portable_manifest verify (Join-Path $extract 'KUODRA') $manifest
+          if ($LASTEXITCODE -ne 0) { throw 'PORTABLE_MANIFEST_VERIFY_FAILED' }
+          $exe = Join-Path $extract 'KUODRA/KUODRA.exe'
+          if (-not (Test-Path -LiteralPath $exe)) { throw 'PORTABLE_RELOCATE_EXE_MISSING' }
+          $pathBefore = $env:PATH
+          $env:PATH = (($pathBefore -split ';') | Where-Object { $_ -notmatch 'Python|hostedtoolcache' }) -join ';'
+          try {
+            & $exe --self-test
+            if ($LASTEXITCODE -ne 0) { throw 'PORTABLE_RELOCATE_SELFTEST_FAILED' }
+          }
+          finally {
+            $env:PATH = $pathBefore
+          }
+          # Staging-only, no registry, PATH, system folders or production data.
+          $stage = Join-Path $env:RUNNER_TEMP 'KUODRA_안전설치_검수'
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          $customer = Join-Path $stage 'customer-financial-data.txt'
+          Set-Content -LiteralPath $customer -Value 'DO_NOT_TOUCH' -NoNewline -Encoding utf8
+          python -m kuodra.portable_lifecycle install (Join-Path $extract 'KUODRA') $manifest $stage 'kuodra-v1'
+          if ($LASTEXITCODE -ne 0) { throw 'STAGING_INSTALL_FAILED' }
+          python -m kuodra.portable_lifecycle verify $stage $manifest 'kuodra-v1'
+          if ($LASTEXITCODE -ne 0) { throw 'STAGING_INSTALLED_BYTES_MISMATCH' }
+          python -m kuodra.portable_lifecycle remove $stage $manifest 'kuodra-v1' --confirm-remove
+          if ($LASTEXITCODE -ne 0) { throw 'STAGING_SAFE_UNINSTALL_FAILED' }
+          if (Test-Path (Join-Path $stage 'kuodra-v1')) { throw 'STAGING_UNINSTALL_INCOMPLETE' }
+          if ((Get-Content -LiteralPath $customer -Raw) -ne 'DO_NOT_TOUCH') { throw 'STAGING_CUSTOMER_FILE_CHANGED' }
+          Remove-Item -LiteralPath $extract -Recurse -Force
+          if (Test-Path -LiteralPath $extract) { throw 'PORTABLE_UNPACK_CLEANUP_FAILED' }
+          if ((Get-Content -LiteralPath $protected -Raw) -ne 'DO_NOT_DELETE') { throw 'CUSTOMER_FILE_CHANGED' }
+          Write-Host 'STAGING_ONLY: unsigned onedir/ZIP, no Python PATH, no shipping to customers'

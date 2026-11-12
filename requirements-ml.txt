@@ -1,0 +1,2 @@
+# Optional for sklearn heldout regressions; use supported Python version
+scikit-learn>=1.5,<2.0
