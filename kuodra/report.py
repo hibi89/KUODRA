@@ -50,11 +50,21 @@ def export_local(report:dict,output_dir:Path,stem:str='review', *, pdf:bool=Fals
     if pdf:
         from kuodra.report_pdf import render_pdf_bytes
         files['pdf']=render_pdf_bytes(report)
-    paths={ext:root/(stem+'.'+ext) for ext in files}
+    # Local receipt links exported bytes to a saved checkpoint. It is UNSIGNED:
+    # a malicious actor able to replace both files and receipt may evade it.
+    receipt={'schema':'kuodra.unsigned-evidence-receipt.v1',
+             'issuer_id':report.get('issuer_id'),'guard':report.get('guard'),
+             'source_authenticated':False,'commercial_rights_verified':False,
+             'artifacts':{ext:{'sha256':sha256(blob).hexdigest(),'bytes':len(blob)}
+                          for ext,blob in files.items()}}
+    receipt_bytes=json.dumps(receipt,sort_keys=True,separators=(',',':')).encode('utf-8')
+    all_files={**files,'receipt':receipt_bytes}
+    paths={ext:root/(stem+'.receipt.json' if ext=='receipt' else stem+'.'+ext)
+           for ext in all_files}
     if any(p.exists() or p.is_symlink() for p in paths.values()):raise FileExistsError('OUTPUT_EXISTS_NO_OVERWRITE')
     created=[]
     try:
-        for ext,bytes_ in files.items():
+        for ext,bytes_ in all_files.items():
             fd=os.open(paths[ext],os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
             created.append(paths[ext])
             with os.fdopen(fd,'wb') as f:
@@ -65,4 +75,6 @@ def export_local(report:dict,output_dir:Path,stem:str='review', *, pdf:bool=Fals
             try:p.unlink(missing_ok=True)
             except OSError:pass
         raise
+    # Backward compatible: return only the requested report artifacts.
+    # The independently checkable unsigned receipt is <stem>.receipt.json.
     return {ext:{'path':str(paths[ext]),'sha256':sha256(data_).hexdigest()} for ext,data_ in files.items()}
