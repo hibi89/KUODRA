@@ -22,7 +22,7 @@
 | D8 Real end-to-end and sale readiness | 9 | licensed actual company examples both countries, user acceptance, OSS notices, financial compliance, help/support/returns/price, owner sale GO |
 | **TOTAL** | **100** | **Not based merely on number of tests or copied files** |
 
-**Current new repo: 85/100 PROVISIONAL INTERNAL ENGINEERING SCOPE** documented in [P85 acceptance](docs/P85_ACCEPTANCE_EVIDENCE_20261113.md), against the same D0–D8 100-point denominator. **This is NOT completion of licensed real SEC/DART source E2E, actual consumer Windows 10/11 installer/upgrade/uninstall, host IAM/no-egress, market rights, financial compliance, or sale approval.** The P85 Windows proof is a temporary unsigned onedir/ZIP staging run. **RELEASE HOLD / SALE NO-GO** remains. Legacy KIC 82/100 not inherited.
+**Current new repo: 87/100 PROVISIONAL ENGINEERING; P95 GOAL NOT MET.** [P95 independent partial evidence](docs/P95_PARTIAL_ACCEPTANCE_EVIDENCE_20261113.md) preserves the original fixed D0–D8 100-point rubric: D0 5 / D1 10 / D2 12 / D3 17 / D4 11 / D5 13 / D6 10 / D7 7 / D8 2. Source `develop@213e11ed5221b1d3ac668a157cac9341dfa2b652` post-merge Ubuntu/Windows **245 PASS each** + unsigned Windows EXE/ZIP integrity [#43293290631](https://github.com/hibi89/KUODRA/actions/runs/43293290631). **Real lawfully used SEC+DART source E2E, client Windows 10/11 installer/GUI and transitive binary licenses, OS private IAM/no-egress, legal and seller GO remain unverified.** Never claim 95% or market effectiveness on synthetic/mocked tests. **RELEASE HOLD / SALE NO-GO**.
 
 ## Milestones (not automatic scores)
 - P50: Core transferred with independent regression, synthetic KR/US file→canonical→B+Guard→basic report, initial UI.
