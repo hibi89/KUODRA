@@ -12,6 +12,9 @@ from kuodra.peers import compare_peers
 from kuodra.market_a import evaluate_synthetic_market_a
 from kuodra.contracts import bounded_json
 from kuodra.exploration import explore_local_cross_section
+from kuodra.heldout import evaluate_synthetic_heldout
+from kuodra.release_gate import verify_evidence_bundle
+from kuodra.safe_io import read_bounded_local
 
 
 def analyze_bytes(raw:bytes,*,country:str,issuer_id:str,as_of:str,statement:str='CFS',
@@ -19,7 +22,8 @@ def analyze_bytes(raw:bytes,*,country:str,issuer_id:str,as_of:str,statement:str=
                   synthetic_sector_code:str|None=None,
                   synthetic_market_raw:bytes|None=None,
                   owner_stats_raw:bytes|None=None,stats_metrics:tuple[str,...]=(),
-                  stats_observation_at:str|None=None,stats_owner_consent:bool=False):
+                  stats_observation_at:str|None=None,stats_owner_consent:bool=False,
+                  synthetic_heldout_raw:bytes|None=None,heldout_owner_consent:bool=False):
     adapter={'US':parse_sec_companyfacts,'KR':parse_dart_annual}.get(country)
     if adapter is None:raise ValueError('COUNTRY_UNSUPPORTED')
     rows, revision_audit = adapter(raw,issuer_id=issuer_id,as_of=as_of,statement=statement,with_audit=True)
@@ -75,6 +79,14 @@ def analyze_bytes(raw:bytes,*,country:str,issuer_id:str,as_of:str,statement:str=
         if exploration['status']=='EXPLORATORY_INDEPENDENCE_UNVERIFIED':
             report['ml']='EXPLORATORY_STATS_HOLD_NO_PREDICTION'
         report['warnings'].append('Exploratory local statistics cannot verify investment causality or returns.')
+    if synthetic_heldout_raw is not None:
+        heldout = evaluate_synthetic_heldout(synthetic_heldout_raw,as_of=as_of,
+                                             owner_consent=heldout_owner_consent)
+        report['synthetic_heldout'] = heldout
+        report['ml'] = ('SYNTHETIC_HOLDOUT_ONLY_NO_REAL_PREDICTION'
+                        if heldout['status']=='EVALUATED_SYNTHETIC_ONLY'
+                        else heldout['status'])
+        report['warnings'].append('Synthetic split scores are NOT verified financial prediction or trading outcomes.')
     report['canonical_audit'] = {
         'schema': canonical['canonical']['schema'],
         'validated_rows': canonical['canonical']['rows'],
@@ -107,6 +119,8 @@ def main(argv=None):
     p.add_argument('--stats-metrics',help='Comma separated predeclared metrics for BH-FDR')
     p.add_argument('--stats-observation',help='Observation date YYYY-MM-DD')
     p.add_argument('--stats-consent',action='store_true',help='I authorize local analysis of my owned CSV')
+    p.add_argument('--synthetic-heldout-source',type=Path,help='Optional synthetic-only held-out dataset; local, never real-market forecast')
+    p.add_argument('--heldout-consent',action='store_true',help='I authorize local synthetic-only heldout evaluation')
     p.add_argument('--pdf',action='store_true',help='Optional printable PDF (requires ReportLab); no Unicode font bundled')
     args=p.parse_args(argv)
     if bool(args.peer_source) != bool(args.peer_issuer_id):
@@ -118,16 +132,21 @@ def main(argv=None):
             if path is None:return None
             if path.is_symlink() or not path.is_file() or path.stat().st_size>1_000_000:
                 raise ValueError('OPTIONAL_SOURCE_FILE_INVALID')
-            return path.read_bytes()
+            return read_bounded_local(path)
         peers=((safe_read(args.peer_source),args.peer_issuer_id),) if args.peer_source else ()
         market=safe_read(args.synthetic_market_file)
         stats=safe_read(args.stats_source)
+        heldout=safe_read(args.synthetic_heldout_source)
         metrics=tuple(args.stats_metrics.split(',')) if args.stats_metrics else ()
-        report=analyze_bytes(args.source.read_bytes(),country=args.country,issuer_id=args.issuer_id,as_of=args.as_of,statement=args.statement,peer_inputs=peers,synthetic_sector_code=args.synthetic_sector_code,synthetic_market_raw=market,owner_stats_raw=stats,stats_metrics=metrics,stats_observation_at=args.stats_observation,stats_owner_consent=args.stats_consent)
+        report=analyze_bytes(read_bounded_local(args.source),country=args.country,issuer_id=args.issuer_id,as_of=args.as_of,statement=args.statement,peer_inputs=peers,synthetic_sector_code=args.synthetic_sector_code,synthetic_market_raw=market,owner_stats_raw=stats,stats_metrics=metrics,stats_observation_at=args.stats_observation,stats_owner_consent=args.stats_consent,synthetic_heldout_raw=heldout,heldout_owner_consent=args.heldout_consent)
         r=export_local(report,args.output_dir,args.name,pdf=args.pdf)
+        integrity=verify_evidence_bundle(args.output_dir,args.name,require_pdf=args.pdf)
+        for kind,details in r.items():
+            if details['sha256'] != integrity['file_hashes'][kind]:
+                raise ValueError('OUTPUT_SHA_INTEGRITY_MISMATCH')
     except (ValueError,KeyError,OSError) as exc:
         p.error(str(exc))
-    print(json.dumps({'guard':report['guard'],'artifacts':r},ensure_ascii=False))
+    print(json.dumps({'guard':report['guard'],'artifacts':r,'receipt_sha256':integrity['receipt_sha256'],'receipt_status':integrity['status']},ensure_ascii=False))
     return 0
 
 if __name__=='__main__':raise SystemExit(main())

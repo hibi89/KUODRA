@@ -64,6 +64,14 @@ def render_pdf_bytes(report: dict) -> bytes:
           ('VALIGN',(0,0),(-1,-1),'TOP'),('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3),
         ]))
         flow.append(KeepTogether([table,Spacer(1,2*mm)]))
+    flags=report.get('financial_flags',[])
+    if flags:
+        flow.append(Paragraph('Financial review questions (not fraud evidence)',styles['Heading2']))
+        for entry in flags:
+            flow.append(Paragraph(ascii_text(entry['code'])+' — '+
+                                  ascii_text(entry['explain'])+
+                                  '; evidence: '+ascii_text(','.join(entry['source_refs'])),
+                                  styles['SmallEvidence']))
     nums=[(r['fiscal_end'],Decimal(r['amount'])) for r in evidence if r['metric']=='revenue']
     nums.sort(key=lambda x:x[0])
     if nums:
@@ -106,6 +114,13 @@ def render_pdf_bytes(report: dict) -> bytes:
                                   ' | paired '+ascii_text(item['paired_n'])+
                                   ' | r '+ascii_text(item['pearson_r'])+
                                   ' | adjusted q '+ascii_text(item['q_bh_fdr']),styles['SmallEvidence']))
+    heldout=report.get('synthetic_heldout')
+    if heldout:
+        flow.append(Paragraph('Synthetic group/time holdout — NOT a real market forecast',styles['Heading2']))
+        flow.append(Paragraph('Status: '+ascii_text(heldout['status'])+' | Guard HOLD | issuer/time leakage checked',styles['SmallEvidence']))
+        if heldout['status']=='EVALUATED_SYNTHETIC_ONLY':
+            flow.append(Paragraph('Model MAE '+ascii_text(heldout['model_mae'])+' / Dummy MAE '+ascii_text(heldout['dummy_mae'])+
+                                  ' | model RMSE '+ascii_text(heldout['model_rmse'])+' / Dummy RMSE '+ascii_text(heldout['dummy_rmse']),styles['SmallEvidence']))
     rev=report.get('revision_audit',[])
     if rev:
         flow.append(Paragraph('As-of filing revisions (latest dated filing selected)',styles['Heading2']))
