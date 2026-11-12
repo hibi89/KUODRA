@@ -15,8 +15,10 @@ def main(argv=None):
         from kuodra.contracts import parse_date
         from kuodra.release_gate import verify_evidence_bundle
         from kuodra.heldout import evaluate_synthetic_heldout
+        from kuodra.official_cli import main as official_review_cli
         assert parse_date('2025-11-13').isoformat() == '2025-11-13'
-        assert callable(verify_evidence_bundle) and callable(evaluate_synthetic_heldout)
+        assert (callable(verify_evidence_bundle) and callable(evaluate_synthetic_heldout)
+                and callable(official_review_cli))
         print(json.dumps({'schema': 'kuodra.desktop-self-test.v1',
                           'status': 'STAGED_OFFLINE_ONLY', 'network_requests': 0,
                           'trade_executed': False, 'consumer_release_ready': False},sort_keys=True))
@@ -29,11 +31,16 @@ def main(argv=None):
                                         require_pdf=False)
         print(json.dumps(result, sort_keys=True))
         return 0
+    if args[:1] == ['--official-review']:
+        # External provider access is still impossible without --consent and
+        # a valid owner-supplied contact/API key in the environment.
+        from kuodra.official_cli import main as official_main
+        return official_main(args[1:])
     if args[:1] == ['--offline-review']:
         from kuodra.cli import main as cli_main
         return cli_main(args[1:])
     if args:
-        raise SystemExit('Use --self-test, --verify-export <dir> [stem], --offline-review <args>, or launch GUI without args')
+        raise SystemExit('Use --self-test, --verify-export <dir> [stem], --offline-review <args>, --official-review <args> with explicit consent, or launch local-only GUI without args')
     from kuodra.gui import main as gui_main
     gui_main()
     return 0
