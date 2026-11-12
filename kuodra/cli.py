@@ -23,10 +23,18 @@ def analyze_bytes(raw:bytes,*,country:str,issuer_id:str,as_of:str,statement:str=
                   synthetic_market_raw:bytes|None=None,
                   owner_stats_raw:bytes|None=None,stats_metrics:tuple[str,...]=(),
                   stats_observation_at:str|None=None,stats_owner_consent:bool=False,
-                  synthetic_heldout_raw:bytes|None=None,heldout_owner_consent:bool=False):
+                  synthetic_heldout_raw:bytes|None=None,heldout_owner_consent:bool=False,
+                  dart_fiscal_end:str|None=None,
+                  dart_request_fs_div_bound:bool=False):
     adapter={'US':parse_sec_companyfacts,'KR':parse_dart_annual}.get(country)
     if adapter is None:raise ValueError('COUNTRY_UNSUPPORTED')
-    rows, revision_audit = adapter(raw,issuer_id=issuer_id,as_of=as_of,statement=statement,with_audit=True)
+    if country!='KR' and (dart_fiscal_end is not None or dart_request_fs_div_bound):
+        raise ValueError('DART_SCOPE_OPTIONS_ONLY_FOR_KR')
+    dart_opts = ({'fiscal_end_override':dart_fiscal_end,
+                  'request_fs_div_bound':dart_request_fs_div_bound}
+                 if country=='KR' else {})
+    rows, revision_audit = adapter(raw,issuer_id=issuer_id,as_of=as_of,
+                                   statement=statement,with_audit=True,**dart_opts)
     # KIC canonical validation is mandatory before a report is exported.
     # Nothing from the PRIVATE canonical raw rowset is copied to report output.
     canonical = normalize_observations_via_kic(rows,as_of=as_of)
