@@ -1,3 +1,7 @@
+## 추가 검증 — 병합 이후 develop 실제 CI (2026-11-13 KST)
+- 코드 병합 SHA: `8b8801991870f1a98117b68bd23ed2e99c77cacb`. 문서 인수인계 커밋 `37cfe308b1254e63958302bc5fd2ecdad4891697`에 대한 [Actions #43300053991](https://github.com/hibi89/KUODRA/actions/runs/43300053991)에서 **Ubuntu 275 PASS / 0 FAIL, Windows 275 PASS / 0 FAIL** 및 unsigned PyInstaller EXE, 한국어 임시경로 ZIP 1,125파일 SHA 검사, stage install→verify→owner-confirmed remove, 별도 사용자 파일 불변 **SUCCESS**를 확인함.
+- 이는 동일 기능 코드의 **병합 후 재검증**이다. 종속 서비스/실공시 사용권/실고객 Windows10/11/법적 판매 승인 검증이 아니며, 완성률 **89% 잠정·P95 미달·RELEASE HOLD** 유지. 이후 새 문서만 갱신하는 커밋은 이 기능 CI 실행 SHA와 구분함.
+
 # KUODRA P95 재진행 검증 — 2026-11-13 KST
 **판정: 내부 엔지니어링 89/100 잠정, 요청한 95% 미달. RELEASE HOLD / SALE NO-GO.**
 
