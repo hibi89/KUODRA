@@ -22,7 +22,7 @@
 | D8 Real end-to-end and sale readiness | 9 | licensed actual company examples both countries, user acceptance, OSS notices, financial compliance, help/support/returns/price, owner sale GO |
 | **TOTAL** | **100** | **Not based merely on number of tests or copied files** |
 
-**Current new repo: 70/100 provisional P70 engineering scope** by unchanged D0–D8 rubric (documented in docs/P70_ACCEPTANCE_EVIDENCE_20261113.md); **real licensed KR/US source P70 acceptance remains PENDING**. D7/D8 stay 0; rights, real sources, Windows buyer installer, financial/legal/customer sale gate not completed. RELEASE HOLD. Legacy KIC 82/100 not inherited.
+**Current new repo: 85/100 PROVISIONAL INTERNAL ENGINEERING SCOPE** documented in [P85 acceptance](docs/P85_ACCEPTANCE_EVIDENCE_20261113.md), against the same D0–D8 100-point denominator. **This is NOT completion of licensed real SEC/DART source E2E, actual consumer Windows 10/11 installer/upgrade/uninstall, host IAM/no-egress, market rights, financial compliance, or sale approval.** The P85 Windows proof is a temporary unsigned onedir/ZIP staging run. **RELEASE HOLD / SALE NO-GO** remains. Legacy KIC 82/100 not inherited.
 
 ## Milestones (not automatic scores)
 - P50: Core transferred with independent regression, synthetic KR/US file→canonical→B+Guard→basic report, initial UI.
