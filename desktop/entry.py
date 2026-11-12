@@ -23,6 +23,12 @@ def main(argv=None):
                           'status': 'STAGED_OFFLINE_ONLY', 'network_requests': 0,
                           'trade_executed': False, 'consumer_release_ready': False},sort_keys=True))
         return 0
+    if args == ['--gui-smoke']:
+        # Real, short-lived Tk initialization on the Windows runner;
+        # it never selects a source, calls the provider or exports.
+        from kuodra.gui import main as gui_main
+        print(json.dumps(gui_main(smoke_only=True),sort_keys=True))
+        return 0
     if args[:1] == ['--verify-export']:
         if len(args) not in (2, 3):
             raise SystemExit('Usage: --verify-export <directory> [stem]')
