@@ -22,7 +22,7 @@
 | D8 Real end-to-end and sale readiness | 9 | licensed actual company examples both countries, user acceptance, OSS notices, financial compliance, help/support/returns/price, owner sale GO |
 | **TOTAL** | **100** | **Not based merely on number of tests or copied files** |
 
-**Current new repo: 5/100 provisional** if initial documents and contract are stored/read back; D1–D8 0 pending tested acceptance. The legacy KIC 82/100 belongs to a different scope and is never carried over. Source transfers alone do not satisfy functional gates.
+**Current new repo: 50/100 provisional P50 engineering accepted** by named D0–D8 partial gates, see docs/P50_ACCEPTANCE_EVIDENCE_20261113.md. D7/D8 remain 0; none of the real data rights, Windows installer or customer sale is verified. Legacy KIC 82/100 not inherited.
 
 ## Milestones (not automatic scores)
 - P50: Core transferred with independent regression, synthetic KR/US file→canonical→B+Guard→basic report, initial UI.
