@@ -9,7 +9,8 @@ import os
 import re
 
 
-def render_html(report:dict)->str:
+def render_html(report:dict, *, language:str='en')->str:
+    if language not in ('en','ko'):raise ValueError('REPORT_LANGUAGE_UNSUPPORTED')
     if report.get('schema')!='kuodra.offline-review.v1':raise ValueError('REPORT_SCHEMA_INVALID')
     e=lambda x:escape(str(x),quote=True)
     rows=''.join('<tr><td>'+e(o['fiscal_end'])+'</td><td>'+e(o['metric'])+'</td><td>'+e(o['amount'])+'</td><td>'+e(o['source'])+'</td></tr>' for o in report['evidence'])
@@ -41,15 +42,46 @@ def render_html(report:dict)->str:
     market_table=('<h2>Synthetic A only (no real market data)</h2><p>Stock return: '+e(a['stock_total_return'])+'; benchmark: '+e(a['benchmark_total_return'])+'; delta: '+e(a['simple_relative_delta'])+'; beta: '+e(a['beta'])+'</p>') if a else ''
     revision_rows=''.join('<tr><td>'+e(x['fiscal_end'])+'</td><td>'+e(x['metric'])+'</td><td>'+e(x['chosen_source'])+'</td><td>'+e(x['chosen_filed_at'])+'</td><td>'+e(x['revised_amount'])+'</td></tr>' for x in report.get('revision_audit',[]))
     revision_table=('<h2>Historical filing revisions (as-of)</h2><table><thead><tr><th>Fiscal year</th><th>Metric</th><th>Chosen source</th><th>Filed</th><th>Changed value</th></tr></thead><tbody>'+revision_rows+'</tbody></table>') if revision_rows else ''
-    return '''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KUODRA offline evidence report</title><style>body{font:16px system-ui;background:#101722;color:#edf0f7;max-width:1050px;margin:36px auto;padding:16px}h1{font-size:30px}small,.muted{color:#a7b4c9}article{display:inline-block;vertical-align:top;min-width:220px;max-width:300px;padding:18px;margin:6px;background:#202b3c;border-radius:12px}table{border-collapse:collapse;width:100%}td,th{padding:10px;border-bottom:1px solid #33445a;text-align:left}.bar{display:flex;gap:15px;align-items:center;padding:6px 0}.bar span{width:180px}.track{flex:1;background:#33445a;height:14px;border-radius:8px}.track div{height:100%;background:#5f9dea;border-radius:8px}code{font-size:12px;color:#9acbfa}mark{background:#ffcc66;padding:4px 8px;border-radius:6px}</style><h1>KUODRA | Corporate evidence</h1><p><mark>HOLD — unverified local source</mark></p><p>'''+e(report['country'])+' / '+e(report['issuer_id'])+' / '+e(report['statement'])+' / '+e(report['as_of'])+'''</p><h2>Available engine findings</h2>'''+cards+flags_html+'''<h2>'''+e(chart_title)+'''</h2>'''+bars+revision_table+peer_table+market_table+stats_table+holdout_table+'''<h2>Local source observations</h2><table><thead><tr><th>Fiscal end</th><th>Metric</th><th>Value</th><th>Receipt</th></tr></thead><tbody>'''+rows+'''</tbody></table><h2>Limitations</h2><ul>'''+warnings+'''</ul><p class="muted">A: '''+e(report['engine_a'])+' | C: '+e(report['engine_c'])+' | ML: '+e(report['ml'])+'''</p><small>Offline synthetically tested interface. No investment advice, no live quote, no SEC/DART publisher authentication. See matching JSON for source hashes.</small></html>'''
+    page = '''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KUODRA offline evidence report</title><style>body{font:16px system-ui;background:#101722;color:#edf0f7;max-width:1050px;margin:36px auto;padding:16px}h1{font-size:30px}small,.muted{color:#a7b4c9}article{display:inline-block;vertical-align:top;min-width:220px;max-width:300px;padding:18px;margin:6px;background:#202b3c;border-radius:12px}table{border-collapse:collapse;width:100%}td,th{padding:10px;border-bottom:1px solid #33445a;text-align:left}.bar{display:flex;gap:15px;align-items:center;padding:6px 0}.bar span{width:180px}.track{flex:1;background:#33445a;height:14px;border-radius:8px}.track div{height:100%;background:#5f9dea;border-radius:8px}code{font-size:12px;color:#9acbfa}mark{background:#ffcc66;padding:4px 8px;border-radius:6px}</style><h1>KUODRA | Corporate evidence</h1><p><mark>HOLD — unverified local source</mark></p><p>'''+e(report['country'])+' / '+e(report['issuer_id'])+' / '+e(report['statement'])+' / '+e(report['as_of'])+'''</p><h2>Available engine findings</h2>'''+cards+flags_html+'''<h2>'''+e(chart_title)+'''</h2>'''+bars+revision_table+peer_table+market_table+stats_table+holdout_table+'''<h2>Local source observations</h2><table><thead><tr><th>Fiscal end</th><th>Metric</th><th>Value</th><th>Receipt</th></tr></thead><tbody>'''+rows+'''</tbody></table><h2>Limitations</h2><ul>'''+warnings+'''</ul><p class="muted">A: '''+e(report['engine_a'])+' | C: '+e(report['engine_c'])+' | ML: '+e(report['ml'])+'''</p><small>Offline synthetically tested interface. No investment advice, no live quote, no SEC/DART publisher authentication. See matching JSON for source hashes.</small></html>'''
+
+    if language=='ko':
+        # Localize only fixed product headings. Financial metrics and source
+        # references stay in original source vocabulary for audit reproducibility.
+        labels={
+            '<html lang="en">':'<html lang="ko">',
+            'KUODRA offline evidence report':'KUODRA 기업 재무 근거 보고서',
+            'KUODRA | Corporate evidence':'KUODRA | 기업 재무 근거 검증',
+            'HOLD — unverified local source':'검토 보류(HOLD) — 원본 인증 미완료',
+            'Available engine findings':'재무 분석 및 계산 근거',
+            'Local source observations':'공시 원문 수치 근거',
+            'Limitations':'분석 한계 및 확인사항',
+            'Fiscal end':'회계기간 종료',
+            'Metric':'분석 항목',
+            'Value':'금액',
+            'Receipt':'공시 접수번호',
+            'Financial review flags — not fraud findings':'재무 점검 신호 — 부정행위 확정 아님',
+            'Historical filing revisions (as-of)':'기준일별 정정공시 이력',
+            'Peer comparison — unauthenticated, no industry verification':'동종기업 비교 — 업종 적합성 미검증',
+            'Synthetic A only (no real market data)':'합성 시장분석 A — 실제 시세 아님',
+            'Offline synthetically tested interface. No investment advice, no live quote, no SEC/DART publisher authentication. See matching JSON for source hashes.':
+              '합성자료 기반으로 검증된 오프라인 보고서입니다. 투자자문 또는 실시간 시세가 아니며 SEC/DART 발행기관 인증이 되지 않았습니다. 원본 해시는 JSON을 확인하세요.'
+        }
+        for original,translated in labels.items():
+            page=page.replace(original,translated)
+        # System fonts only: nothing is bundled/embedded into a redistributed
+        # executable. Customer may print to PDF in their own browser.
+        page=page.replace('font:16px system-ui','font:16px "Malgun Gothic","Nanum Gothic",system-ui')
+        page=page.replace('</style>','@media print{body{background:white;color:#172536;margin:0;padding:6mm;max-width:none;font-size:11px}article{background:#eaf1fa;color:#172536;break-inside:avoid}table{break-inside:auto}tr{break-inside:avoid}.muted,small{color:#475569}h2{break-after:avoid}mark{background:#ffe9a8;color:#111827}} </style>')
+    return page
 
 
-def export_local(report:dict,output_dir:Path,stem:str='review', *, pdf:bool=False)->dict:
+
+def export_local(report:dict,output_dir:Path,stem:str='review', *, pdf:bool=False,html_language:str='en')->dict:
     if type(stem) is not str or not re.fullmatch('[A-Za-z0-9_-]{1,48}',stem):raise ValueError('OUTPUT_STEM_INVALID')
     root=Path(output_dir)
     if not root.exists() or not root.is_dir() or root.is_symlink():raise ValueError('OUTPUT_DIRECTORY_INVALID')
     data=json.dumps(report,ensure_ascii=False,sort_keys=True,separators=(',',':')).encode('utf-8')
-    html=render_html(report).encode('utf-8')
+    html=render_html(report,language=html_language).encode('utf-8')
     files={'json':data,'html':html}
     if pdf:
         from kuodra.report_pdf import render_pdf_bytes

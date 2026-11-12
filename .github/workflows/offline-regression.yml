@@ -92,6 +92,19 @@ jobs:
           finally {
             $env:PATH = $pathBefore
           }
+          # Staging-only, no registry, PATH, system folders or production data.
+          $stage = Join-Path $env:RUNNER_TEMP 'KUODRA_안전설치_검수'
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          $customer = Join-Path $stage 'customer-financial-data.txt'
+          Set-Content -LiteralPath $customer -Value 'DO_NOT_TOUCH' -NoNewline -Encoding utf8
+          python -m kuodra.portable_lifecycle install (Join-Path $extract 'KUODRA') $manifest $stage 'kuodra-v1'
+          if ($LASTEXITCODE -ne 0) { throw 'STAGING_INSTALL_FAILED' }
+          python -m kuodra.portable_lifecycle verify $stage $manifest 'kuodra-v1'
+          if ($LASTEXITCODE -ne 0) { throw 'STAGING_INSTALLED_BYTES_MISMATCH' }
+          python -m kuodra.portable_lifecycle remove $stage $manifest 'kuodra-v1' --confirm-remove
+          if ($LASTEXITCODE -ne 0) { throw 'STAGING_SAFE_UNINSTALL_FAILED' }
+          if (Test-Path (Join-Path $stage 'kuodra-v1')) { throw 'STAGING_UNINSTALL_INCOMPLETE' }
+          if ((Get-Content -LiteralPath $customer -Raw) -ne 'DO_NOT_TOUCH') { throw 'STAGING_CUSTOMER_FILE_CHANGED' }
           Remove-Item -LiteralPath $extract -Recurse -Force
           if (Test-Path -LiteralPath $extract) { throw 'PORTABLE_UNPACK_CLEANUP_FAILED' }
           if ((Get-Content -LiteralPath $protected -Raw) -ne 'DO_NOT_DELETE') { throw 'CUSTOMER_FILE_CHANGED' }

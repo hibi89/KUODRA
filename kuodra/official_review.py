@@ -29,6 +29,7 @@ def analyze_opted_in_once(
     sec_user_agent: str | None = None,
     dart_api_key: str | None = None,
     dart_business_year: str | None = None,
+    dart_fiscal_end: str | None = None,
     transport: Callable | None = None,
 ) -> dict:
     if owner_consent is not True:
@@ -36,7 +37,8 @@ def analyze_opted_in_once(
     validate_entity(country, issuer_id)
     parse_date(as_of)
     if country == 'US':
-        if dart_api_key is not None or dart_business_year is not None:
+        if (dart_api_key is not None or dart_business_year is not None
+                or dart_fiscal_end is not None):
             raise ValueError('OFFICIAL_US_UNEXPECTED_DART_CREDENTIALS')
         request = build_sec_request(
             issuer_id, user_agent=sec_user_agent, opt_in=True)
@@ -57,6 +59,10 @@ def analyze_opted_in_once(
     report = analyze_bytes(
         result.content, country=country, issuer_id=issuer_id,
         as_of=as_of, statement=statement,
+        dart_fiscal_end=(dart_fiscal_end if country=='KR' else None),
+        # This exact validated request includes fs_div even if the official
+        # response omits it. The HTTP transport result alone is not a license.
+        dart_request_fs_div_bound=(country=='KR'),
     )
     # Never include raw private source bytes, DART query string or API key.
     if country == 'KR' and '?' in result.source_url:
@@ -70,6 +76,11 @@ def analyze_opted_in_once(
         'provider_response_parsed': True,
         'requested_by_owner': True,
         'automatic_retry_count': 0,
+        'financial_period_origin': (
+            'OWNER_EXPLICIT_FISCAL_END_NOT_IN_DART_ALL_RESPONSE'
+            if country=='KR' and dart_fiscal_end is not None else
+            'SOURCE_ROW_FISCAL_END'
+        ),
     }
     report['source_verified'] = False
     report['rights_verified'] = False

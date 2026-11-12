@@ -23,10 +23,18 @@ def analyze_bytes(raw:bytes,*,country:str,issuer_id:str,as_of:str,statement:str=
                   synthetic_market_raw:bytes|None=None,
                   owner_stats_raw:bytes|None=None,stats_metrics:tuple[str,...]=(),
                   stats_observation_at:str|None=None,stats_owner_consent:bool=False,
-                  synthetic_heldout_raw:bytes|None=None,heldout_owner_consent:bool=False):
+                  synthetic_heldout_raw:bytes|None=None,heldout_owner_consent:bool=False,
+                  dart_fiscal_end:str|None=None,
+                  dart_request_fs_div_bound:bool=False):
     adapter={'US':parse_sec_companyfacts,'KR':parse_dart_annual}.get(country)
     if adapter is None:raise ValueError('COUNTRY_UNSUPPORTED')
-    rows, revision_audit = adapter(raw,issuer_id=issuer_id,as_of=as_of,statement=statement,with_audit=True)
+    if country!='KR' and (dart_fiscal_end is not None or dart_request_fs_div_bound):
+        raise ValueError('DART_SCOPE_OPTIONS_ONLY_FOR_KR')
+    dart_opts = ({'fiscal_end_override':dart_fiscal_end,
+                  'request_fs_div_bound':dart_request_fs_div_bound}
+                 if country=='KR' else {})
+    rows, revision_audit = adapter(raw,issuer_id=issuer_id,as_of=as_of,
+                                   statement=statement,with_audit=True,**dart_opts)
     # KIC canonical validation is mandatory before a report is exported.
     # Nothing from the PRIVATE canonical raw rowset is copied to report output.
     canonical = normalize_observations_via_kic(rows,as_of=as_of)
@@ -111,6 +119,9 @@ def main(argv=None):
     p.add_argument('--output-dir',type=Path,required=True)
     p.add_argument('--name',default='review')
     p.add_argument('--statement',choices=['CFS','OFS'],default='CFS')
+    p.add_argument('--dart-fiscal-end',help='KR annual period end from independently checked filing; not inferred')
+    p.add_argument('--dart-request-scope-attested',action='store_true',
+        help='I obtained this lawful DART local JSON with selected CFS/OFS request scope; not publisher authentication')
     p.add_argument('--peer-source',type=Path,help='Optional lawful peer filing; no sector equivalence is assumed')
     p.add_argument('--peer-issuer-id',help='Official peer issuer ID, required with --peer-source')
     p.add_argument('--synthetic-sector-code',help='Explicit synthetic test code only; not industry authentication')
@@ -122,9 +133,12 @@ def main(argv=None):
     p.add_argument('--synthetic-heldout-source',type=Path,help='Optional synthetic-only held-out dataset; local, never real-market forecast')
     p.add_argument('--heldout-consent',action='store_true',help='I authorize local synthetic-only heldout evaluation')
     p.add_argument('--pdf',action='store_true',help='Optional printable PDF (requires ReportLab); no Unicode font bundled')
+    p.add_argument('--html-language',choices=('en','ko'),default='en',help='English or Korean printable HTML; no font files bundled')
     args=p.parse_args(argv)
     if bool(args.peer_source) != bool(args.peer_issuer_id):
         p.error('PEER_SOURCE_AND_ID_REQUIRED_TOGETHER')
+    if args.country!='KR' and (args.dart_fiscal_end is not None or args.dart_request_scope_attested):
+        p.error('DART_SCOPE_OPTIONS_ONLY_FOR_KR')
     input_limit = source_limit_for(args.country)
     if (args.source.is_symlink() or not args.source.is_file()
             or args.source.stat().st_size > input_limit):
@@ -140,8 +154,10 @@ def main(argv=None):
         stats=safe_read(args.stats_source)
         heldout=safe_read(args.synthetic_heldout_source)
         metrics=tuple(args.stats_metrics.split(',')) if args.stats_metrics else ()
-        report=analyze_bytes(read_bounded_local(args.source,limit=input_limit),country=args.country,issuer_id=args.issuer_id,as_of=args.as_of,statement=args.statement,peer_inputs=peers,synthetic_sector_code=args.synthetic_sector_code,synthetic_market_raw=market,owner_stats_raw=stats,stats_metrics=metrics,stats_observation_at=args.stats_observation,stats_owner_consent=args.stats_consent,synthetic_heldout_raw=heldout,heldout_owner_consent=args.heldout_consent)
-        r=export_local(report,args.output_dir,args.name,pdf=args.pdf)
+        report=analyze_bytes(read_bounded_local(args.source,limit=input_limit),country=args.country,issuer_id=args.issuer_id,as_of=args.as_of,statement=args.statement,peer_inputs=peers,synthetic_sector_code=args.synthetic_sector_code,synthetic_market_raw=market,owner_stats_raw=stats,stats_metrics=metrics,stats_observation_at=args.stats_observation,stats_owner_consent=args.stats_consent,synthetic_heldout_raw=heldout,heldout_owner_consent=args.heldout_consent,
+                             dart_fiscal_end=args.dart_fiscal_end,
+                             dart_request_fs_div_bound=args.dart_request_scope_attested)
+        r=export_local(report,args.output_dir,args.name,pdf=args.pdf,html_language=args.html_language)
         integrity=verify_evidence_bundle(args.output_dir,args.name,require_pdf=args.pdf)
         for kind,details in r.items():
             if details['sha256'] != integrity['file_hashes'][kind]:

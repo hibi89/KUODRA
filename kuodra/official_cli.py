@@ -24,16 +24,18 @@ def main(argv=None) -> int:
     parser.add_argument('--as-of',required=True)
     parser.add_argument('--statement',choices=('CFS','OFS'),default='CFS')
     parser.add_argument('--business-year',help='DART annual year, only for KR')
+    parser.add_argument('--fiscal-end',help='DART actual fiscal end (YYYY-MM-DD) independently checked against source filing; never inferred')
     parser.add_argument('--output-dir',type=Path,required=True)
     parser.add_argument('--name',default='official_review')
     parser.add_argument('--pdf',action='store_true')
+    parser.add_argument('--html-language',choices=('en','ko'),default='en')
     parser.add_argument('--consent',action='store_true',
         help='I authorize exactly one request to SEC or DART using my own credentials/contact')
     args=parser.parse_args(argv)
     if not args.consent:
         parser.error('OFFICIAL_SOURCE_EXPLICIT_OWNER_CONSENT_REQUIRED')
-    if args.country=='US' and args.business_year is not None:
-        parser.error('SEC_DOES_NOT_USE_DART_BUSINESS_YEAR')
+    if args.country=='US' and (args.business_year is not None or args.fiscal_end is not None):
+        parser.error('SEC_DOES_NOT_USE_DART_PERIOD_OPTIONS')
     if args.country=='KR' and not args.business_year:
         parser.error('DART_BUSINESS_YEAR_REQUIRED')
     try:
@@ -46,8 +48,9 @@ def main(argv=None) -> int:
             dart_api_key=(os.environ.get('KUODRA_DART_API_KEY')
                           if args.country=='KR' else None),
             dart_business_year=args.business_year if args.country=='KR' else None,
+            dart_fiscal_end=args.fiscal_end if args.country=='KR' else None,
         )
-        saved=export_local(report,args.output_dir,args.name,pdf=args.pdf)
+        saved=export_local(report,args.output_dir,args.name,pdf=args.pdf,html_language=args.html_language)
         checked=verify_evidence_bundle(args.output_dir,args.name,require_pdf=args.pdf)
         if any(item['sha256']!=checked['file_hashes'].get(ext)
                for ext,item in saved.items()):
