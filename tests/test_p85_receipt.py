@@ -45,7 +45,7 @@ class ReceiptTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root=Path(td);export_local(_review(),root,'proof')
             target=root/'proof.html'
-            target.write_text(target.read_text(encoding='utf8').replace('cash_conversion','cash_conversion_CHANGE'))
+            target.write_text(target.read_text(encoding='utf8').replace('cash_conversion','cash_conversion_CHANGE'),encoding='utf8')
             with self.assertRaisesRegex(ValueError,'RECEIPT_HASH_MISMATCH'):
                 verify_evidence_bundle(root,'proof')
     def test_old_bundle_distinctly_unanchored(self):
