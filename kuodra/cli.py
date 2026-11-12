@@ -130,6 +130,7 @@ def main(argv=None):
     p.add_argument('--synthetic-heldout-source',type=Path,help='Optional synthetic-only held-out dataset; local, never real-market forecast')
     p.add_argument('--heldout-consent',action='store_true',help='I authorize local synthetic-only heldout evaluation')
     p.add_argument('--pdf',action='store_true',help='Optional printable PDF (requires ReportLab); no Unicode font bundled')
+    p.add_argument('--html-language',choices=('en','ko'),default='en',help='English or Korean printable HTML; no font files bundled')
     args=p.parse_args(argv)
     if bool(args.peer_source) != bool(args.peer_issuer_id):
         p.error('PEER_SOURCE_AND_ID_REQUIRED_TOGETHER')
@@ -149,7 +150,7 @@ def main(argv=None):
         heldout=safe_read(args.synthetic_heldout_source)
         metrics=tuple(args.stats_metrics.split(',')) if args.stats_metrics else ()
         report=analyze_bytes(read_bounded_local(args.source,limit=input_limit),country=args.country,issuer_id=args.issuer_id,as_of=args.as_of,statement=args.statement,peer_inputs=peers,synthetic_sector_code=args.synthetic_sector_code,synthetic_market_raw=market,owner_stats_raw=stats,stats_metrics=metrics,stats_observation_at=args.stats_observation,stats_owner_consent=args.stats_consent,synthetic_heldout_raw=heldout,heldout_owner_consent=args.heldout_consent)
-        r=export_local(report,args.output_dir,args.name,pdf=args.pdf)
+        r=export_local(report,args.output_dir,args.name,pdf=args.pdf,html_language=args.html_language)
         integrity=verify_evidence_bundle(args.output_dir,args.name,require_pdf=args.pdf)
         for kind,details in r.items():
             if details['sha256'] != integrity['file_hashes'][kind]:
