@@ -42,7 +42,7 @@ class OfficialDartShapeAcceptance(TestCase):
                 fiscal_end_override='2024-12-31')
 
     def test_official_shape_requires_explicit_fiscal_end(self):
-        with self.assertRaisesRegex(ValueError,'DART_FISCAL_END_EXPLICIT_SOURCE_REQUIRED'):
+        with self.assertRaisesRegex(ValueError,'DART_FISCAL_PERIOD_MISSING'):
             parse_dart_annual(synthetic_documented_all_rows(),
                 issuer_id='99998888',as_of='2025-11-12',
                 request_fs_div_bound=True)
@@ -72,7 +72,7 @@ class OfficialDartShapeAcceptance(TestCase):
     def test_missing_fiscal_end_override_does_not_assume_december(self):
         o=json.loads(synthetic_documented_all_rows())
         for r in o['list']: r['bsns_year']='2024'
-        with self.assertRaisesRegex(ValueError,'DART_FISCAL_END_EXPLICIT_SOURCE_REQUIRED'):
+        with self.assertRaisesRegex(ValueError,'DART_FISCAL_PERIOD_MISSING'):
             parse_dart_annual(json.dumps(o).encode(),issuer_id='99998888',
                 as_of='2025-11-12',request_fs_div_bound=True)
 
@@ -127,7 +127,7 @@ class OfficialDartShapeAcceptance(TestCase):
 
     def test_official_response_without_period_must_fail_closed(self):
         raw=synthetic_documented_all_rows()
-        with self.assertRaisesRegex(ValueError,'DART_FISCAL_END_EXPLICIT_SOURCE_REQUIRED'):
+        with self.assertRaisesRegex(ValueError,'DART_FISCAL_PERIOD_MISSING'):
             analyze_opted_in_once(country='KR',issuer_id='99998888',
                 as_of='2025-11-12',owner_consent=True,dart_api_key=KEY,
                 dart_business_year='2024',
