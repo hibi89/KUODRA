@@ -51,6 +51,25 @@ def build_review(records:list[Observation],*,as_of:str):
     warnings=['Publisher identity and commercial source rights are NOT attested by an uploaded file. Review is held.']
     if len(periods)<2:warnings.append('No comparable second fiscal year: growth unavailable')
     if not findings:warnings.append('Insufficient aligned financial metrics')
+    # Conservative cross-period diagnostic questions, never misconduct findings.
+    financial_flags=[]
+    if ni and cfo and ni.value>0 and cfo.value<0:
+        financial_flags.append({'code':'PROFIT_POSITIVE_CFO_NEGATIVE',
+           'status':'REVIEW_ONLY_NOT_FRAUD',
+           'explain':'Positive earnings but negative operating cashflow require context and source review',
+           'source_refs':sorted({ni.source_ref,cfo.source_ref})})
+    if prev and current.get('revenue') and prev.get('revenue') and prev['revenue'].value>0:
+        current_revenue=current['revenue']
+        previous_revenue=prev['revenue']
+        rev_delta=current_revenue.value/previous_revenue.value-1
+        for metric,code in (('receivables','RECEIVABLES_OUTPACE_REVENUE'),
+                            ('inventory','INVENTORY_OUTPACES_REVENUE')):
+            c,p=current.get(metric),prev.get(metric)
+            if c and p and p.value>0 and c.value/p.value-1>rev_delta:
+                financial_flags.append({'code':code,'status':'REVIEW_ONLY_NOT_FRAUD',
+                   'explain':metric+' percentage growth exceeds revenue growth over the same comparable fiscal years',
+                   'source_refs':sorted({c.source_ref,p.source_ref,
+                                         current_revenue.source_ref,previous_revenue.source_ref})})
     findings.sort(key=lambda x:x['name'])
     evidence=[{'metric':r.metric,'fiscal_end':r.fiscal_end,'available_at':r.available_at,
         'amount':_f(r.value),'source':r.source_ref,'sha256':r.source_sha256} for r in eligible]
@@ -62,4 +81,4 @@ def build_review(records:list[Observation],*,as_of:str):
             'engine_b':'CALCULATED_UNVERIFIED_SOURCE' if findings else 'INSUFFICIENT_EVIDENCE',
             'engine_c':'UNAVAILABLE_NO_MATCHED_PEERS',
             'ml':'NO_TRAIN_NO_VALIDATED_FINANCIAL_SAMPLES',
-            'findings':findings,'evidence':evidence,'warnings':warnings,'trade_executed':False}
+            'findings':findings,'financial_flags':financial_flags,'evidence':evidence,'warnings':warnings,'trade_executed':False}
