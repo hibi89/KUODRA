@@ -97,7 +97,7 @@ def parse_dart_annual(raw:bytes,*,issuer_id:str,as_of:str,statement:str='CFS',
         period_text=item.get('thstrm_dt')
         if period_text is None:
             if override_end is None:
-                raise ValueError('DART_FISCAL_END_EXPLICIT_SOURCE_REQUIRED')
+                raise ValueError('DART_FISCAL_PERIOD_MISSING')
             if override_end.year!=int(year):
                 raise ValueError('DART_FISCAL_YEAR_MISMATCH')
             end=override_end
