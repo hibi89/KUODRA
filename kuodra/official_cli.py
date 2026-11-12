@@ -28,6 +28,7 @@ def main(argv=None) -> int:
     parser.add_argument('--output-dir',type=Path,required=True)
     parser.add_argument('--name',default='official_review')
     parser.add_argument('--pdf',action='store_true')
+    parser.add_argument('--html-language',choices=('en','ko'),default='en')
     parser.add_argument('--consent',action='store_true',
         help='I authorize exactly one request to SEC or DART using my own credentials/contact')
     args=parser.parse_args(argv)
@@ -49,7 +50,7 @@ def main(argv=None) -> int:
             dart_business_year=args.business_year if args.country=='KR' else None,
             dart_fiscal_end=args.fiscal_end if args.country=='KR' else None,
         )
-        saved=export_local(report,args.output_dir,args.name,pdf=args.pdf)
+        saved=export_local(report,args.output_dir,args.name,pdf=args.pdf,html_language=args.html_language)
         checked=verify_evidence_bundle(args.output_dir,args.name,require_pdf=args.pdf)
         if any(item['sha256']!=checked['file_hashes'].get(ext)
                for ext,item in saved.items()):
