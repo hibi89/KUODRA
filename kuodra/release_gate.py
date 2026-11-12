@@ -20,8 +20,9 @@ def verify_evidence_bundle(directory: str | Path, stem: str = 'review', *, requi
     if not root.is_dir() or root.is_symlink():
         raise ValueError('VERIFY_DIRECTORY_INVALID')
     files = {ext: root / (stem + '.' + ext) for ext in ('json', 'html')}
-    if require_pdf:
-        files['pdf'] = root / (stem + '.pdf')
+    pdf_path = root / (stem + '.pdf')
+    if require_pdf or pdf_path.exists() or pdf_path.is_symlink():
+        files['pdf'] = pdf_path
     data = {}
     for ext, path in files.items():
         if path.is_symlink() or not path.is_file():
@@ -54,8 +55,40 @@ def verify_evidence_bundle(directory: str | Path, stem: str = 'review', *, requi
         pdf = data['pdf']
         if not pdf.startswith(b'%PDF-') or b'%%EOF' not in pdf[-256:]:
             raise ValueError('VERIFY_PDF_HEADER_INVALID')
-    return {'schema': 'kuodra.export-verification.v1', 'status': 'FILES_INTACT_NOT_AUTHENTICATED',
+    hashes = {ext: hashlib.sha256(blob).hexdigest() for ext, blob in data.items()}
+    receipt_path = root / (stem + '.receipt.json')
+    receipt_digest = None
+    status = 'FORMAT_CHECKED_NO_SAVED_RECEIPT'
+    if receipt_path.exists() or receipt_path.is_symlink():
+        if receipt_path.is_symlink() or not receipt_path.is_file():
+            raise ValueError('VERIFY_RECEIPT_LINK_DENIED')
+        if receipt_path.stat().st_nlink != 1 or not 0 < receipt_path.stat().st_size <= 10_000:
+            raise ValueError('VERIFY_RECEIPT_SCOPE_DENIED')
+        rb = receipt_path.read_bytes()
+        receipt_digest = hashlib.sha256(rb).hexdigest()
+        try:
+            receipt = json.loads(rb.decode('utf-8','strict'))
+        except (UnicodeError,ValueError) as exc:
+            raise ValueError('VERIFY_RECEIPT_INVALID') from exc
+        if (type(receipt) is not dict or
+                set(receipt) != {'schema','issuer_id','guard','source_authenticated',
+                                 'commercial_rights_verified','artifacts'} or
+                receipt['schema'] != 'kuodra.unsigned-evidence-receipt.v1' or
+                receipt['issuer_id'] != r['issuer_id'] or receipt['guard'] != 'HOLD' or
+                receipt['source_authenticated'] is not False or
+                receipt['commercial_rights_verified'] is not False or
+                type(receipt['artifacts']) is not dict or
+                set(receipt['artifacts']) != set(data)):
+            raise ValueError('VERIFY_RECEIPT_SCOPE_INVALID')
+        for ext, content in data.items():
+            item = receipt['artifacts'][ext]
+            if (type(item) is not dict or set(item) != {'sha256','bytes'}
+                    or item['sha256'] != hashes[ext] or item['bytes'] != len(content)):
+                raise ValueError('VERIFY_RECEIPT_HASH_MISMATCH')
+        status = 'UNSIGNED_RECEIPT_MATCHED_NOT_AUTHENTICATED'
+    return {'schema': 'kuodra.export-verification.v1', 'status': status,
             'guard': 'HOLD', 'publisher_authenticated': False,
             'commercial_rights_verified': False, 'market_predictions_verified': False,
-            'file_hashes': {ext: hashlib.sha256(blob).hexdigest() for ext, blob in data.items()},
-            'evidence_count': len(r['evidence']), 'report_schema': r['schema']}
+            'receipt_sha256':receipt_digest, 'signature_verified':False,
+            'file_hashes': hashes, 'evidence_count': len(r['evidence']),
+            'report_schema': r['schema']}
