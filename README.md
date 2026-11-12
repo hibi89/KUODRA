@@ -2,7 +2,7 @@
 
 Independent commercial **Korean + US corporate disclosure and financial evidence verification** software.
 
-**State as of 2026-11-13 KST:** P85 **internal engineering scope 85/100 provisional**, merged source `develop@46889e4ea14aaa27feb7874f6bf120aee3010dee`, Ubuntu/Windows each **197 PASS**, unsigned Windows portable ZIP smoke passed; **licensed real US/KR source, buyer Windows install, legal and sale GO still NOT VERIFIED / RELEASE HOLD**. See [P85 acceptance](docs/P85_ACCEPTANCE_EVIDENCE_20261113.md).
+**State as of 2026-11-13 KST:** **P95 target NOT met; internal engineering 87/100 provisional**, source `develop@213e11ed5221b1d3ac668a157cac9341dfa2b652`, [CI #43293290631](https://github.com/hibi89/KUODRA/actions/runs/43293290631) Ubuntu/Windows each **245 PASS**, unsigned Windows ZIP SHA-check PASS; real SEC/DART data/rights, buyer Windows 10/11 installer, full OSS LICENSE/NOTICE, financial rules, sale owner GO **UNVERIFIED**. [P95 partial audit](docs/P95_PARTIAL_ACCEPTANCE_EVIDENCE_20261113.md). **RELEASE HOLD / SALE NO-GO**.
 
 ## Product promise (final target, not implemented delivery)
 User chooses KR (DART) or US (SEC), company and as-of date, supplies authorized filings/local documents or explicitly authorized official API access, then the system validates provenance, fiscal period, units, issuer identity and release time. A market-vs-fundamentals (rights-gated), B financial integrity, C peer/industry context and optional calibrated/tested ML produce source-bound numbers, formulas, charts, uncertainty, Guard HOLD/REJECT and an auditable HTML/PDF report. No trading or individualized buy/sell advice.
