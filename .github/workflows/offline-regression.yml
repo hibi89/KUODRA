@@ -62,3 +62,30 @@ jobs:
           }
           python -c "import json,os; p=os.path.join(os.environ['RUNNER_TEMP'],'kuodra-p85-staged','smoke.json'); r=json.load(open(p,encoding='utf8')); assert r['guard']=='HOLD' and r['trade_executed'] is False and r['rights_verified'] is False"
 
+
+      - name: Verify portable ZIP unpack, Korean path, and source preservation
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zip = Join-Path $env:RUNNER_TEMP 'KUODRA_P85_STAGING_NOT_FOR_SALE.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'KUODRA_한글_검증'
+          $protected = Join-Path $env:RUNNER_TEMP 'customer-original-protected.txt'
+          Set-Content -LiteralPath $protected -Value 'DO_NOT_DELETE' -NoNewline -Encoding utf8
+          Compress-Archive -Path 'dist/KUODRA' -DestinationPath $zip -Force
+          Expand-Archive -LiteralPath $zip -DestinationPath $extract -Force
+          $exe = Join-Path $extract 'KUODRA/KUODRA.exe'
+          if (-not (Test-Path -LiteralPath $exe)) { throw 'PORTABLE_RELOCATE_EXE_MISSING' }
+          $pathBefore = $env:PATH
+          $env:PATH = (($pathBefore -split ';') | Where-Object { $_ -notmatch 'Python|hostedtoolcache' }) -join ';'
+          try {
+            & $exe --self-test
+            if ($LASTEXITCODE -ne 0) { throw 'PORTABLE_RELOCATE_SELFTEST_FAILED' }
+          }
+          finally {
+            $env:PATH = $pathBefore
+          }
+          Remove-Item -LiteralPath $extract -Recurse -Force
+          if (Test-Path -LiteralPath $extract) { throw 'PORTABLE_UNPACK_CLEANUP_FAILED' }
+          if ((Get-Content -LiteralPath $protected -Raw) -ne 'DO_NOT_DELETE') { throw 'CUSTOMER_FILE_CHANGED' }
+          Write-Host 'STAGING_ONLY: unsigned onedir/ZIP, no Python PATH, no shipping to customers'
