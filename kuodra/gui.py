@@ -3,13 +3,16 @@ from __future__ import annotations
 from pathlib import Path
 from kuodra.cli import analyze_bytes
 from kuodra.report import export_local
+from kuodra.safe_io import read_bounded_local, source_limit_for
 
 
 def run_selected(*,country:str,issuer_id:str,as_of:str,source:str,output_dir:str,name:str='review',statement:str='CFS'):
     p=Path(source)
-    if p.is_symlink() or not p.is_file() or p.stat().st_size>1_000_000:
+    limit=source_limit_for(country)
+    if p.is_symlink() or not p.is_file() or p.stat().st_size>limit:
         raise ValueError('SOURCE_FILE_INVALID')
-    report=analyze_bytes(p.read_bytes(),country=country,issuer_id=issuer_id,as_of=as_of,statement=statement)
+    report=analyze_bytes(read_bounded_local(p,limit=limit),
+                         country=country,issuer_id=issuer_id,as_of=as_of,statement=statement)
     result=export_local(report,Path(output_dir),name)
     return report,result
 
