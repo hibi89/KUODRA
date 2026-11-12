@@ -9,8 +9,11 @@ from kuodra.contracts import bounded_json,digest,observation,parse_date,validate
 from kuodra.revisions import reconcile_annual_facts
 
 ACCOUNTS={
-'ifrs-full_Revenue':('revenue','IS'),
-'ifrs-full_ProfitLoss':('net_income','IS'),
+# OpenDART officially permits both IS and CIS. Consolidated reports may
+# place income facts on the comprehensive income statement instead of IS.
+# Conflicting duplicate amounts across sections are rejected by reconciliation.
+'ifrs-full_Revenue':('revenue',('IS','CIS')),
+'ifrs-full_ProfitLoss':('net_income',('IS','CIS')),
 'ifrs-full_CashFlowsFromUsedInOperatingActivities':('operating_cashflow','CF'),
 'ifrs-full_TradeAndOtherCurrentReceivables':('receivables','BS'),
 'ifrs-full_Inventories':('inventory','BS'),
@@ -89,7 +92,8 @@ def parse_dart_annual(raw:bytes,*,issuer_id:str,as_of:str,statement:str='CFS',
         if aid not in ACCOUNTS:
             continue
         metric,section=ACCOUNTS[aid]
-        if item.get('sj_div')!=section:
+        permitted_sections = section if isinstance(section,tuple) else (section,)
+        if item.get('sj_div') not in permitted_sections:
             raise ValueError('DART_STATEMENT_SECTION_MISMATCH')
         year=item.get('bsns_year')
         if type(year) is not str or not _YEAR.fullmatch(year):
