@@ -41,3 +41,17 @@ def read_bounded_local(path: str | Path, *, limit: int=1_000_000) -> bytes:
         finally:os.close(fd)
     except (FileNotFoundError, IsADirectoryError, PermissionError) as exc:
         raise ValueError('LOCAL_SOURCE_UNAVAILABLE') from exc
+
+
+def source_limit_for(country: str) -> int:
+    """Bound input by the corresponding official source adapter's parser limit.
+
+    CompanyFacts is an issuer-level history and can legitimately be larger
+    than a narrow DART annual single-company result. This is not permission
+    for unlimited downloads or automatic network calls.
+    """
+    if country == 'US':
+        return 10_000_000
+    if country == 'KR':
+        return 1_000_000
+    raise ValueError('COUNTRY_UNSUPPORTED')

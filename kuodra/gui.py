@@ -3,81 +3,195 @@ from __future__ import annotations
 from pathlib import Path
 from kuodra.cli import analyze_bytes
 from kuodra.report import export_local
+from kuodra.safe_io import read_bounded_local, source_limit_for
 
 
-def run_selected(*,country:str,issuer_id:str,as_of:str,source:str,output_dir:str,name:str='review',statement:str='CFS'):
+def run_selected(*,country:str,issuer_id:str,as_of:str,source:str,output_dir:str,name:str='review',statement:str='CFS',pdf:bool=False):
     p=Path(source)
-    if p.is_symlink() or not p.is_file() or p.stat().st_size>1_000_000:
+    limit=source_limit_for(country)
+    if p.is_symlink() or not p.is_file() or p.stat().st_size>limit:
         raise ValueError('SOURCE_FILE_INVALID')
-    report=analyze_bytes(p.read_bytes(),country=country,issuer_id=issuer_id,as_of=as_of,statement=statement)
-    result=export_local(report,Path(output_dir),name)
+    report=analyze_bytes(read_bounded_local(p,limit=limit),
+                         country=country,issuer_id=issuer_id,as_of=as_of,statement=statement)
+    result=export_local(report,Path(output_dir),name,pdf=pdf)
     return report,result
 
 
 def main():
+    """Local-only desktop screen; no official API calls or financial advice."""
+    import re
     import tkinter as tk
-    from tkinter import filedialog,messagebox,ttk
+    from tkinter import filedialog, messagebox, ttk
     from datetime import date
-    from webbrowser import open as open_browser
-    from pathlib import Path
+    import webbrowser
+    from kuodra.release_gate import verify_evidence_bundle
 
-    root=tk.Tk();root.title('KUODRA — Offline Company Evidence (Developer MVP)')
-    root.geometry('820x510');root.minsize(720,460);root.configure(bg='#101722')
+    BG='#0b1321'
+    CARD='#172336'
+    FIELD='#26354b'
+    TEXT='#eef4ff'
+    MUTED='#a7b8ce'
+    BLUE='#4d80c9'
+    WARN='#ffd390'
+
+    root=tk.Tk()
+    root.title('KUODRA | Corporate evidence verification')
+    root.geometry('930x650')
+    root.minsize(800,610)
+    root.configure(bg=BG)
+
     style=ttk.Style(root)
     style.theme_use('clam')
-    style.configure('TLabel',background='#101722',foreground='#edf0f7',font=('Segoe UI',11))
-    style.configure('TButton',font=('Segoe UI',11))
-    style.configure('TEntry',font=('Segoe UI',11))
-    style.configure('TCombobox',font=('Segoe UI',11))
-    frame=ttk.Frame(root,padding=24);frame.pack(fill='both',expand=True)
-    country=tk.StringVar(value='KR');issuer=tk.StringVar(value='99998888');asof=tk.StringVar(value=date.today().isoformat())
-    statement=tk.StringVar(value='CFS');src=tk.StringVar();out=tk.StringVar();name=tk.StringVar(value='review')
-    hint=tk.StringVar(value='Data source: local file only • No external API • No investment advice.')
+    style.configure('Q.TFrame',background=BG)
+    style.configure('QCard.TFrame',background=CARD)
+    style.configure('QTitle.TLabel',background=BG,foreground=TEXT,font=('Segoe UI',22,'bold'))
+    style.configure('QSubtitle.TLabel',background=BG,foreground=MUTED,font=('Segoe UI',10))
+    style.configure('QBadge.TLabel',background=BG,foreground=WARN,font=('Segoe UI',11,'bold'))
+    style.configure('QLabel.TLabel',background=CARD,foreground=MUTED,font=('Segoe UI',10,'bold'))
+    style.configure('QCard.TLabel',background=CARD,foreground=TEXT,font=('Segoe UI',10))
+    style.configure('QStatus.TLabel',background=BG,foreground=WARN,font=('Segoe UI',10,'bold'))
+    style.configure('QEntry.TEntry',font=('Segoe UI',10),fieldbackground=FIELD,
+                    foreground=TEXT,insertcolor=TEXT,borderwidth=1,padding=7)
+    style.configure('QSelect.TCombobox',font=('Segoe UI',10),fieldbackground=FIELD,
+                    foreground=TEXT,background=FIELD,padding=6)
+    style.map('QSelect.TCombobox',fieldbackground=[('readonly',FIELD)],
+              foreground=[('readonly',TEXT)])
+    style.configure('QButton.TButton',font=('Segoe UI',10),padding=(12,8),
+                    foreground=TEXT,background='#2c4260',borderwidth=0)
+    style.map('QButton.TButton',background=[('active','#3c5b83')])
+    style.configure('QPrimary.TButton',font=('Segoe UI',10,'bold'),padding=(15,9),
+                    foreground='white',background=BLUE,borderwidth=0)
+    style.map('QPrimary.TButton',background=[('active','#6498e6')])
+    style.configure('QCheck.TCheckbutton',background=CARD,foreground=TEXT,
+                    font=('Segoe UI',10))
+    style.map('QCheck.TCheckbutton',background=[('active',CARD)],
+              foreground=[('active',TEXT)])
 
-    def make_row(i,title,var,button=None,values=None):
-        ttk.Label(frame,text=title).grid(row=i,column=0,sticky='w',pady=7)
+    container=ttk.Frame(root,style='Q.TFrame',padding=(28,22))
+    container.pack(fill='both',expand=True)
+    header=ttk.Frame(container,style='Q.TFrame')
+    header.pack(fill='x',pady=(0,18))
+    ttk.Label(header,text='KUODRA',style='QTitle.TLabel').grid(row=0,column=0,sticky='w')
+    ttk.Label(header,text='OFFLINE STAGING  ·  GUARD HOLD',
+              style='QBadge.TLabel').grid(row=0,column=1,sticky='e',padx=(20,0))
+    ttk.Label(header,text='KR / US corporate financial evidence verification — source first',
+              style='QSubtitle.TLabel').grid(row=1,column=0,columnspan=2,sticky='w',pady=(6,0))
+    header.columnconfigure(0,weight=1)
+
+    card=ttk.Frame(container,style='QCard.TFrame',padding=(25,21))
+    card.pack(fill='x')
+    country=tk.StringVar(value='KR')
+    issuer=tk.StringVar(value='')
+    asof=tk.StringVar(value=date.today().isoformat())
+    statement=tk.StringVar(value='CFS')
+    src=tk.StringVar(value='')
+    out=tk.StringVar(value='')
+    name=tk.StringVar(value='review')
+    pdf=tk.BooleanVar(value=False)
+    status=tk.StringVar(value='Source must be authorized and local. No network requests or trades.')
+
+    def row(i,title,var,*,values=None,browse=None):
+        ttk.Label(card,text=title,style='QLabel.TLabel').grid(
+            row=i,column=0,sticky='w',pady=6,padx=(0,16))
         if values:
-            w=ttk.Combobox(frame,textvariable=var,values=values,state='readonly',width=28)
+            widget=ttk.Combobox(card,textvariable=var,values=values,
+                                state='readonly',width=30,style='QSelect.TCombobox')
         else:
-            w=ttk.Entry(frame,textvariable=var,width=62)
-        w.grid(row=i,column=1,sticky='ew',padx=8)
-        if button:
-            ttk.Button(frame,text='Browse',command=button).grid(row=i,column=2,padx=4)
-    def selected_country(*_):
-        issuer.set('99998888' if country.get()=='KR' else '0009999888')
-    country.trace_add('write',selected_country)
-    make_row(0,'Country',country,values=('KR','US'))
-    make_row(1,'Official issuer ID',issuer)
-    make_row(2,'Analysis date (YYYY-MM-DD)',asof)
-    make_row(3,'Statement',statement,values=('CFS','OFS'))
-    make_row(4,'Source JSON',src,button=lambda:src.set(filedialog.askopenfilename(title='Choose lawfully held source',filetypes=[('JSON files','*.json')]) or src.get()))
-    make_row(5,'Report output folder',out,button=lambda:out.set(filedialog.askdirectory(title='Choose output folder') or out.get()))
-    make_row(6,'Report name (new only)',name)
-    frame.columnconfigure(1,weight=1)
-    ttk.Label(frame,text='OFFLINE • SOURCE UNVERIFIED • HOLD',font=('Segoe UI',12,'bold')).grid(row=7,column=0,columnspan=3,sticky='w',pady=(18,2))
-    ttk.Label(frame,textvariable=hint,wraplength=720).grid(row=8,column=0,columnspan=3,sticky='w',pady=8)
-    last={'html':None}
+            widget=ttk.Entry(card,textvariable=var,width=58,style='QEntry.TEntry')
+        widget.grid(row=i,column=1,sticky='ew',pady=6)
+        if browse is not None:
+            ttk.Button(card,text='Browse',command=browse,style='QButton.TButton').grid(
+                row=i,column=2,padx=(12,0),sticky='ew',pady=5)
+        return widget
+
+    def choose_source():
+        result=filedialog.askopenfilename(
+            title='Choose a lawfully held SEC/DART-shaped JSON',
+            filetypes=[('JSON files','*.json')])
+        if result:src.set(result)
+
+    def choose_output():
+        result=filedialog.askdirectory(title='Choose a new local report folder')
+        if result:out.set(result)
+
+    def changed_country(*_):
+        issuer.set('')  # Never pre-populate a synthetic company as real
+    country.trace_add('write',changed_country)
+
+    row(0,'Country',country,values=('KR','US'))
+    row(1,'Official issuer ID',issuer)
+    row(2,'As-of date',asof)
+    row(3,'Financial statements',statement,values=('CFS','OFS'))
+    row(4,'Local financial JSON',src,browse=choose_source)
+    row(5,'Export directory',out,browse=choose_output)
+    row(6,'New export filename',name)
+    card.columnconfigure(1,weight=1)
+
+    ttk.Checkbutton(card,text='Include PDF (ASCII labels only; Korean font gate pending)',
+                    variable=pdf,style='QCheck.TCheckbutton').grid(
+                        row=7,column=1,columnspan=2,sticky='w',pady=(10,0))
+
+    footer=ttk.Frame(container,style='Q.TFrame')
+    footer.pack(fill='x',pady=(18,4))
+    ttk.Label(footer,text='HOLD  •  Source rights and publisher authenticity unverified',
+              style='QStatus.TLabel').pack(anchor='w',pady=(0,7))
+    ttk.Label(footer,textvariable=status,style='QSubtitle.TLabel',
+              wraplength=820).pack(anchor='w',pady=(0,12))
+    buttons=ttk.Frame(footer,style='Q.TFrame')
+    buttons.pack(fill='x')
+    saved={'html':None,'dir':None,'name':None}
+
+    def safe_error(exc):
+        code=str(exc)
+        if not re.fullmatch(r'[A-Z][A-Z0-9_]{3,80}',code):
+            code='LOCAL_ANALYSIS_FAILED'
+        status.set('HOLD — '+code+'; check company, date and output path.')
+        messagebox.showerror('KUODRA — HOLD','Analysis was not completed. Error: '+code)
 
     def run():
         try:
-            report,artifacts=run_selected(country=country.get(),issuer_id=issuer.get(),as_of=asof.get(),source=src.get(),output_dir=out.get(),name=name.get(),statement=statement.get())
-        except Exception as e:
-            # Do not reveal confidential input contents/stack traces in GUI errors.
-            hint.set('Analysis denied: '+type(e).__name__+': '+str(e)[:120])
-            messagebox.showerror('KUODRA HOLD','Analysis denied. '+str(e)[:160])
-            return
-        last['html']=Path(artifacts['html']['path'])
-        hint.set('HOLD / '+str(len(report['findings']))+' computed observations; report saved to the chosen folder.')
-        messagebox.showinfo('KUODRA','Offline report generated. Source and market rights are NOT verified.')
+            report,paths=run_selected(
+                country=country.get(),issuer_id=issuer.get(),
+                as_of=asof.get(),statement=statement.get(),source=src.get(),
+                output_dir=out.get(),name=name.get(),pdf=pdf.get())
+            saved.update(html=Path(paths['html']['path']),dir=out.get(),name=name.get())
+            status.set('HOLD — '+str(len(report['findings']))+
+                ' conditional metrics; local HTML/JSON'+('/PDF' if pdf.get() else '')+
+                ' created. No source or market rights verified.')
+            messagebox.showinfo('KUODRA — LOCAL EXPORT',
+                                'Evidence report saved. Review Guard HOLD and source limitations.')
+        except (ValueError,KeyError,OSError,TypeError) as exc:
+            safe_error(exc)
 
     def open_last():
-        if last['html'] and last['html'].exists():
-            open_browser(last['html'].resolve().as_uri())
+        if saved['html'] is not None and saved['html'].is_file():
+            webbrowser.open(saved['html'].resolve().as_uri())
         else:
-            messagebox.showinfo('KUODRA','Run an analysis to create a local HTML report first.')
+            messagebox.showinfo('KUODRA','Run a local analysis before opening a report.')
 
-    ttk.Button(frame,text='Analyze local file (HOLD)',command=run).grid(row=9,column=1,sticky='w',pady=16)
-    ttk.Button(frame,text='Open last local HTML report',command=open_last).grid(row=9,column=1,sticky='e',pady=16)
+    def verify_last():
+        if saved['dir'] is None:
+            messagebox.showinfo('KUODRA','Create an export to verify first.')
+            return
+        try:
+            check=verify_evidence_bundle(saved['dir'],saved['name'],
+                                         require_pdf=pdf.get())
+            status.set('HOLD — '+check['status']+
+                       '. Byte integrity only; not publisher authentication.')
+        except (ValueError,OSError,KeyError,TypeError) as exc:
+            safe_error(exc)
+
+    ttk.Button(buttons,text='Analyze local source',style='QPrimary.TButton',
+               command=run).pack(side='left',padx=(0,12))
+    ttk.Button(buttons,text='Open HTML',style='QButton.TButton',
+               command=open_last).pack(side='left',padx=(0,12))
+    ttk.Button(buttons,text='Verify export',style='QButton.TButton',
+               command=verify_last).pack(side='left')
+    ttk.Label(container,
+        text='No automatic API access, no trading, no investment advice  |  Developer evaluation only',
+        style='QSubtitle.TLabel').pack(anchor='w',pady=(16,0))
     root.mainloop()
 
-if __name__=='__main__':main()
+
+if __name__=='__main__':
+    main()
