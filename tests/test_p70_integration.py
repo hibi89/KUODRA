@@ -80,6 +80,39 @@ class P70FullIntegration(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'OFS_NOT_VERIFIABLE'):
             analyze_bytes(US,country='US',issuer_id='0009999888',as_of='2025-03-01',statement='OFS')
 
+    def test_issuer_local_stats_use_kic_fdr_without_raw_private_export(self):
+        from tests.test_p70_exploration import stats_fixture
+        raw=stats_fixture()
+        with patch.object(socket.socket,'connect',side_effect=AssertionError('NETWORK_DENIED')):
+            report=analyze_bytes(US,country='US',issuer_id='0009999888',
+                as_of='2025-12-31',owner_stats_raw=raw,
+                stats_metrics=('revenue','cashflow'),
+                stats_observation_at='2024-12-31',stats_owner_consent=True)
+        stats=report['exploratory_statistics']
+        self.assertEqual(stats['eligible_entities'],36)
+        self.assertEqual(stats['status'],'EXPLORATORY_INDEPENDENCE_UNVERIFIED')
+        self.assertEqual(report['guard'],'HOLD')
+        self.assertEqual(report['ml'],'EXPLORATORY_STATS_HOLD_NO_PREDICTION')
+        self.assertFalse(report['canonical_audit']['private_data_exported'])
+        self.assertTrue(report['canonical_audit']['owner_private_statistics_in_report'])
+        html=render_html(report)
+        self.assertIn('Local exploratory FDR',html)
+        self.assertNotIn('firm001',html)
+        self.assertNotIn('firm035',html)
+        self.assertNotIn('INSTITUTION_APPROVED',html)
+        with tempfile.TemporaryDirectory() as folder:
+            from kuodra.report import export_local
+            receipts=export_local(report,Path(folder),'with_stats',pdf=True)
+            self.assertEqual(set(receipts),{'json','html','pdf'})
+            self.assertGreater((Path(folder)/'with_stats.pdf').stat().st_size,3000)
+
+    def test_owner_stats_without_opt_in_is_fail_closed(self):
+        from tests.test_p70_exploration import stats_fixture
+        with self.assertRaisesRegex(ValueError,'STATS_EXPLICIT_OWNER_CONSENT_REQUIRED'):
+            analyze_bytes(KR,country='KR',issuer_id='99998888',as_of='2025-12-31',
+                 owner_stats_raw=stats_fixture(),stats_metrics=('revenue','cashflow'),
+                 stats_observation_at='2024-12-31',stats_owner_consent=False)
+
     def test_cli_pdf_three_artifacts_no_trade(self):
         with tempfile.TemporaryDirectory() as t:
             exit_code=main(['--country','KR','--issuer-id','99998888',

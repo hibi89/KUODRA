@@ -42,8 +42,10 @@ def parse_amount(value: object) -> Decimal:
     return v
 
 
-def bounded_json(raw: bytes) -> dict:
-    if type(raw) is not bytes or not 0<len(raw)<=MAX_BYTES:
+def bounded_json(raw: bytes, *, max_bytes:int=MAX_BYTES) -> dict:
+    if type(max_bytes) is not int or not 1<=max_bytes<=10_000_000:
+        raise ValueError('SOURCE_LIMIT_INVALID')
+    if type(raw) is not bytes or not 0<len(raw)<=max_bytes:
         raise ValueError('SOURCE_SIZE_INVALID')
     def no_duplicate(pairs):
         result={}
