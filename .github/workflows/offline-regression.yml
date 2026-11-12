@@ -1,0 +1,31 @@
+name: KUODRA offline core and country adapters
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main, develop]
+permissions:
+  contents: read
+concurrency:
+  group: kuodra-core-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  offline-tests:
+    name: offline ${{ matrix.os }} Python 3.11
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact SHA
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile all modules
+        run: python -m compileall -q proofinvest kuodra tests
+      - name: Run legacy KIC and new KUODRA regressions
+        run: python -m unittest discover -s tests -v
