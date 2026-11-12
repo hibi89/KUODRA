@@ -2,7 +2,7 @@
 
 Independent commercial **Korean + US corporate disclosure and financial evidence verification** software.
 
-**State as of 2026-11-12 KST:** ENGINEERING 5/100 (provisional architecture/documentation score only); RELEASE HOLD; no commercial release, Windows installer, production URL, real API entitlement proof or customer acceptance.
+**State as of 2026-11-13 KST:** P50 engineering 50/100 provisional ACCEPTED on tested develop SHA 74c2f4db6ef419780d66a89a1e15c91fab4bd272; RELEASE HOLD, not commercial-ready. See docs/P50_ACCEPTANCE_EVIDENCE_20261113.md.
 
 ## Product promise (final target, not implemented delivery)
 User chooses KR (DART) or US (SEC), company and as-of date, supplies authorized filings/local documents or explicitly authorized official API access, then the system validates provenance, fiscal period, units, issuer identity and release time. A market-vs-fundamentals (rights-gated), B financial integrity, C peer/industry context and optional calibrated/tested ML produce source-bound numbers, formulas, charts, uncertainty, Guard HOLD/REJECT and an auditable HTML/PDF report. No trading or individualized buy/sell advice.

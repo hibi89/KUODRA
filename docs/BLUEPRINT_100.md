@@ -108,7 +108,7 @@ BUSINESS authorized on-premise private finance files, role/egress verified; sepa
 First customers: company/disclosure researchers and SMEs assessing supplier financial narratives, not trading signal seekers. Competitive listings alone are not verified actual demand; validate installation, usability, buyer inquiries and returns/support.
 
 ## 13. 50 → 70 → 85 → 95 → 100 delivery sequence
-- **Now D0 5/100 provisional:** product design, schema, policy, branch architecture, KIC source inventory. Product not executable from main.
+- **Initial P0 D0 5/100 (historical 2026-11-12 baseline); CURRENT P50 50/100 provisional per STATUS and acceptance evidence:** product design, schema, policy, branch architecture, KIC source inventory. Product not executable from main.
 - **P50 target:** safely migrated core and exact-SHA tests run in new repo, offline KR+US sample canonical/B/Guard, basic report and local UI.
 - **P70:** source-licensed actual KR+US company cases and peer B/C, rights-gated A, verified time/unit/filing amendments, credible evidence outputs.
 - **P85:** optional ML holdout/FDR, negative privacy security and Windows packaging, comparison charts/formulas, retry/error UX.
