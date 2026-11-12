@@ -64,6 +64,14 @@ def render_pdf_bytes(report: dict) -> bytes:
           ('VALIGN',(0,0),(-1,-1),'TOP'),('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3),
         ]))
         flow.append(KeepTogether([table,Spacer(1,2*mm)]))
+    flags=report.get('financial_flags',[])
+    if flags:
+        flow.append(Paragraph('Financial review questions (not fraud evidence)',styles['Heading2']))
+        for entry in flags:
+            flow.append(Paragraph(ascii_text(entry['code'])+' — '+
+                                  ascii_text(entry['explain'])+
+                                  '; evidence: '+ascii_text(','.join(entry['source_refs'])),
+                                  styles['SmallEvidence']))
     nums=[(r['fiscal_end'],Decimal(r['amount'])) for r in evidence if r['metric']=='revenue']
     nums.sort(key=lambda x:x[0])
     if nums:
