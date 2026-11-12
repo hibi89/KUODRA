@@ -13,7 +13,7 @@ jobs:
   offline-tests:
     name: offline ${{ matrix.os }} Python 3.11
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -31,3 +31,34 @@ jobs:
         run: python -m compileall -q proofinvest kuodra tests
       - name: Run legacy KIC and new KUODRA regressions
         run: python -m unittest discover -s tests -v
+      - name: Install PyInstaller for unsigned staging only (Windows)
+        if: matrix.os == 'windows-latest'
+        run: python -m pip install "pyinstaller>=6.10,<7"
+      - name: Build Windows portable folder (not installer or approved sale)
+        if: matrix.os == 'windows-latest'
+        run: pyinstaller --noconfirm --clean --onedir --name KUODRA --paths . desktop/entry.py
+      - name: Execute staged Windows EXE with Python PATH excluded
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = (Resolve-Path 'dist/KUODRA/KUODRA.exe').Path
+          $oldPath = $env:PATH
+          $env:PATH = (($oldPath -split ';') | Where-Object { $_ -notmatch 'Python|hostedtoolcache' }) -join ';'
+          try {
+            $self = & $exe --self-test
+            if ($LASTEXITCODE -ne 0) { throw 'P85_EXE_SELFTEST_FAILED' }
+            $selfObj = $self | ConvertFrom-Json
+            if ($selfObj.consumer_release_ready -ne $false -or $selfObj.status -ne 'STAGED_OFFLINE_ONLY') { throw 'P85_SALE_GATE_BYPASSED' }
+            $dir = Join-Path $env:RUNNER_TEMP 'kuodra-p85-staged'
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+            & $exe --offline-review --country KR --issuer-id 99998888 --as-of 2025-11-12 --source fixtures/synthetic/kr_dart.json --output-dir $dir --name smoke
+            if ($LASTEXITCODE -ne 0) { throw 'P85_EXE_OFFLINE_REVIEW_FAILED' }
+            & $exe --verify-export $dir smoke
+            if ($LASTEXITCODE -ne 0) { throw 'P85_EXE_VERIFY_FAILED' }
+          }
+          finally {
+            $env:PATH = $oldPath
+          }
+          python -c "import json,os; p=os.path.join(os.environ['RUNNER_TEMP'],'kuodra-p85-staged','smoke.json'); r=json.load(open(p,encoding='utf8')); assert r['guard']=='HOLD' and r['trade_executed'] is False and r['rights_verified'] is False"
+
