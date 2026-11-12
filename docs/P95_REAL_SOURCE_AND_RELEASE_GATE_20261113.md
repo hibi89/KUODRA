@@ -25,7 +25,7 @@ python -m kuodra.official_cli --country US --issuer-id 0000320193 --as-of YYYY-M
 ```
 KR source: user obtains own lawfully issued OpenDART key, stores it in local `KUODRA_DART_API_KEY`, and runs:
 ```text
-python -m kuodra.official_cli --country KR --issuer-id <official-8-digit-corp-code> --business-year 2024 --as-of YYYY-MM-DD --output-dir <existing-empty-folder> --name kr-demo --consent
+python -m kuodra.official_cli --country KR --issuer-id <official-8-digit-corp-code> --business-year 2024 --fiscal-end YYYY-MM-DD --as-of YYYY-MM-DD --output-dir <existing-empty-folder> --name kr-demo --consent
 ```
 - Both workflows are one explicit request and output local HOLD, even if source geometry parses. Do not treat successful HTTPS as publisher or commercial use authorization. CLI commands are examples to be run **only when** the owner approves service contact and provides lawful credentials on their own machine. No owner contact was invented; do not auto-fill.
 - If official data exceeds the bounded parser budget, source is unsupported: use rights-held **local file** after explicit size/code review, not bypass/hidden retries.
@@ -40,6 +40,9 @@ python -m kuodra.official_cli --country KR --issuer-id <official-8-digit-corp-co
 - DART terms: https://opendart.fss.or.kr/intro/terms.do — provider terms and third-party data rights need case-specific review.
 - American copyright facts vs authored prose: https://www.copyright.gov/help/faq/faq-general.html . Company source numbers may support independent analysis, but long written passages/graphics and commercial benchmark data remain rights-controlled.
 - KRX/Nasdaq/Massive/S&P market/index redistribution for proprietary price/benchmark series: separate contract and product terms; never infer a right from the API's being viewable in a browser.
+
+
+**Required OpenDART fiscal-date contract:** Official `fnlttSinglAcntAll` rows do **not** supply `fs_div` or `thstrm_dt`. `fs_div` is bound by the validated request parameter (CFS/OFS). `--fiscal-end` must come from a separately checked original annual filing or other lawful authoritative source and must match the response's `bsns_year`; do not assume December 31. If missing or conflicting, fail closed as `DART_FISCAL_PERIOD_MISSING` or `DART_FISCAL_END_SOURCE_CONFLICT`. The owner-supplied date does not authenticate the filing or give commercial rights. [Official DART full-statement developer guide](https://opendart.fss.or.kr/guide/detail.do?apiGrpCd=DS003&apiId=2019020).
 
 ## Mandatory acceptance before P95 or public consumer release
 | Gate | Current evidence | Remaining requirement |
