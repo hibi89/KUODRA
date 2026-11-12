@@ -1,3 +1,9 @@
+## 2026-11-13 KST — P95 PAUSED BY OWNER INSTRUCTION / [사용자 개입 필요]
+- **개발 중단(사용자 지시)**. 내부 엔지니어링 완성률 **89/100 잠정**, P95 **미달**, 새 코딩·배포·판매 금지. `RELEASE HOLD / SALE NO-GO`. 이 상태 기록은 제품 완성을 뜻하지 않음.
+- 최신 수정: [PR #7](https://github.com/hibi89/KUODRA/pull/7) `develop` 병합 SHA `733104a08fb99f4baf5bf4be520b0f7d88729f56` — OpenDART 공식 IS/CIS 수치 충돌 차단 및 스크롤 가능한 Windows GUI. 기능 브랜치 SHA `49d78a013ad51495d8facc0d82e3c2103a2ae99d`, [CI #43302772793](https://github.com/hibi89/KUODRA/actions/runs/43302772793): Ubuntu·Windows 각각 **282/282 PASS**, Windows 개발용 frozen Tk GUI smoke 및 unsigned ZIP 무결성·설치/삭제 테스트 PASS. **PR #7 병합 후 별도 exact-SHA CI는 이 문서에서 검증하지 않음.**
+- **사용자 개입이 필요한 최종 검증**: 적법한 실제 SEC 회사 원천(본인 식별 User-Agent)·OpenDART 회사 원천(본인 발급 API key와 독립 확인 결산일)의 실데이터 E2E; 고객 Windows10/11 GUI·한글 인쇄 PDF·보안경고/서명·실제 설치/제거; 데이터/종속 라이선스·금융법무/환불/판매 책임 및 최종 GO. 키·원본 비밀을 ChatGPT/GitHub에 전달 금지.
+- `[작업중]` 대신 **`[사용자 개입 필요 · P95 중단]`**으로 취급. 후속 명시적 재개 지시와 위 게이트 접근 가능 상태 전까지 진척률 유지. 기존 KIC 원본 불변, 코드 `main` 미병합, Production 미적용.
+
 ## 2026-11-13 KST — Post-merge validation confirmed: [Actions #43300053991](https://github.com/hibi89/KUODRA/actions/runs/43300053991) — Ubuntu 275/275 PASS, Windows 275/275 PASS, Windows portable staging install/verify/explicit uninstall + protected original PASS, source code merge `8b8801991870f1a98117b68bd23ed2e99c77cacb`. P95 goal unmet, 89% provisional engineering, RELEASE HOLD. Later documentation-only commits do not represent newly tested functional SHA.
 
 ## P95 follow-up checkpoint — 2026-11-13 KST — 89/100 PROVISIONAL, TARGET 95 UNMET
