@@ -45,7 +45,7 @@ class P85FullPipelineTests(unittest.TestCase):
     def test_html_contains_dummy_and_limits(self):
         html=render_html(self._review())
         self.assertIn('Dummy baseline',html)
-        self.assertIn('Synthetic group/time',html)
+        self.assertIn('Grouped/time-heldout',html)
         self.assertNotIn('TRAIN_A',html)
         self.assertNotIn('TEST_B',html)
     def test_local_pdf_html_json_and_independent_hashes(self):
