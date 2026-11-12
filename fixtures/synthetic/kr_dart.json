@@ -1,6 +1,6 @@
 {
   "status": "000",
-  "message": "SYNTHETIC ONLY \u2014 NOT AN OFFICIAL OPENDART RESPONSE",
+  "message": "SYNTHETIC ONLY — NOT AN OFFICIAL OPENDART RESPONSE",
   "list": [
     {
       "corp_code": "99998888",
@@ -11,7 +11,8 @@
       "sj_div": "IS",
       "account_id": "ifrs-full_Revenue",
       "thstrm_amount": "1000",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2023.01.01 ~ 2023.12.31"
     },
     {
       "corp_code": "99998888",
@@ -22,7 +23,8 @@
       "sj_div": "IS",
       "account_id": "ifrs-full_Revenue",
       "thstrm_amount": "1200",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2024.01.01 ~ 2024.12.31"
     },
     {
       "corp_code": "99998888",
@@ -33,7 +35,8 @@
       "sj_div": "IS",
       "account_id": "ifrs-full_ProfitLoss",
       "thstrm_amount": "120",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2023.01.01 ~ 2023.12.31"
     },
     {
       "corp_code": "99998888",
@@ -44,7 +47,8 @@
       "sj_div": "IS",
       "account_id": "ifrs-full_ProfitLoss",
       "thstrm_amount": "150",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2024.01.01 ~ 2024.12.31"
     },
     {
       "corp_code": "99998888",
@@ -55,7 +59,8 @@
       "sj_div": "CF",
       "account_id": "ifrs-full_CashFlowsFromUsedInOperatingActivities",
       "thstrm_amount": "110",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2023.01.01 ~ 2023.12.31"
     },
     {
       "corp_code": "99998888",
@@ -66,7 +71,8 @@
       "sj_div": "CF",
       "account_id": "ifrs-full_CashFlowsFromUsedInOperatingActivities",
       "thstrm_amount": "180",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2024.01.01 ~ 2024.12.31"
     },
     {
       "corp_code": "99998888",
@@ -77,7 +83,8 @@
       "sj_div": "BS",
       "account_id": "ifrs-full_TradeAndOtherCurrentReceivables",
       "thstrm_amount": "150",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2023.12.31"
     },
     {
       "corp_code": "99998888",
@@ -88,7 +95,8 @@
       "sj_div": "BS",
       "account_id": "ifrs-full_TradeAndOtherCurrentReceivables",
       "thstrm_amount": "200",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2024.12.31"
     },
     {
       "corp_code": "99998888",
@@ -99,7 +107,8 @@
       "sj_div": "BS",
       "account_id": "ifrs-full_Inventories",
       "thstrm_amount": "90",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2023.12.31"
     },
     {
       "corp_code": "99998888",
@@ -110,7 +119,8 @@
       "sj_div": "BS",
       "account_id": "ifrs-full_Inventories",
       "thstrm_amount": "110",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2024.12.31"
     },
     {
       "corp_code": "99998888",
@@ -121,7 +131,8 @@
       "sj_div": "BS",
       "account_id": "ifrs-full_Liabilities",
       "thstrm_amount": "650",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2023.12.31"
     },
     {
       "corp_code": "99998888",
@@ -132,7 +143,8 @@
       "sj_div": "BS",
       "account_id": "ifrs-full_Liabilities",
       "thstrm_amount": "700",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2024.12.31"
     },
     {
       "corp_code": "99998888",
@@ -143,7 +155,8 @@
       "sj_div": "BS",
       "account_id": "ifrs-full_Equity",
       "thstrm_amount": "300",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2023.12.31"
     },
     {
       "corp_code": "99998888",
@@ -154,7 +167,8 @@
       "sj_div": "BS",
       "account_id": "ifrs-full_Equity",
       "thstrm_amount": "400",
-      "currency": "KRW"
+      "currency": "KRW",
+      "thstrm_dt": "2024.12.31"
     }
   ]
 }
