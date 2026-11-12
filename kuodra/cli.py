@@ -8,16 +8,60 @@ from kuodra.markets.kr.dart_local import parse_dart_annual
 from kuodra.review import build_review
 from kuodra.report import export_local
 from kuodra.kic_bridge import normalize_observations_via_kic
+from kuodra.peers import compare_peers
+from kuodra.market_a import evaluate_synthetic_market_a
+from kuodra.contracts import bounded_json
 
 
-def analyze_bytes(raw:bytes,*,country:str,issuer_id:str,as_of:str,statement:str='CFS'):
+def analyze_bytes(raw:bytes,*,country:str,issuer_id:str,as_of:str,statement:str='CFS',
+                  peer_inputs:tuple[tuple[bytes,str],...]=(),
+                  synthetic_sector_code:str|None=None,
+                  synthetic_market_raw:bytes|None=None):
     adapter={'US':parse_sec_companyfacts,'KR':parse_dart_annual}.get(country)
     if adapter is None:raise ValueError('COUNTRY_UNSUPPORTED')
-    rows = adapter(raw,issuer_id=issuer_id,as_of=as_of,statement=statement)
+    rows, revision_audit = adapter(raw,issuer_id=issuer_id,as_of=as_of,statement=statement,with_audit=True)
     # KIC canonical validation is mandatory before a report is exported.
     # Nothing from the PRIVATE canonical raw rowset is copied to report output.
     canonical = normalize_observations_via_kic(rows,as_of=as_of)
     report = build_review(rows,as_of=as_of)
+    report['revision_audit'] = revision_audit
+    report['fiscal_reconciliation'] = {
+        'period_source': 'official filing-shaped fiscal date fields, not inferred Dec 31' if country == 'KR' else 'SEC period end + annual duration',
+        'revisions_considered': sum(a['candidate_count']-1 for a in revision_audit),
+        'revisions_changing_values': sum(bool(a['revised_amount']) for a in revision_audit),
+        'publisher_authenticated': False,
+        'rights_verified': False,
+    }
+    if type(peer_inputs) is not tuple or len(peer_inputs)>10:
+        raise ValueError('PEER_INPUTS_INVALID')
+    if peer_inputs:
+        peer_reports=[]
+        ids=[issuer_id]
+        for peer in peer_inputs:
+            if (type(peer) is not tuple or len(peer)!=2 or
+                    type(peer[0]) is not bytes or type(peer[1]) is not str):
+                raise ValueError('PEER_INPUT_INVALID')
+            peer_rows=adapter(peer[0],issuer_id=peer[1],as_of=as_of,statement=statement)
+            normalize_observations_via_kic(peer_rows,as_of=as_of)
+            peer_reports.append(build_review(peer_rows,as_of=as_of))
+            ids.append(peer[1])
+        sector=None
+        if synthetic_sector_code is not None:
+            sector={'code':synthetic_sector_code,'issuers':ids,'origin':'SYNTHETIC_TEST_ONLY'}
+        cohort=compare_peers(report,peer_reports,synthetic_sector=sector)
+        report['peer_comparison']=cohort
+        report['engine_c']=cohort['status']
+        report['warnings'].append('Peer comparison is descriptive and does not verify real industry comparability.')
+    elif synthetic_sector_code is not None:
+        raise ValueError('SECTOR_WITHOUT_PEERS')
+    if synthetic_market_raw is not None:
+        obj=bounded_json(synthetic_market_raw)
+        if set(obj)!={'mode','stock','benchmark'} or obj.get('mode')!='SYNTHETIC_TEST_ONLY':
+            raise ValueError('MARKET_SYNTHETIC_MODE_REQUIRED')
+        market=evaluate_synthetic_market_a(obj['stock'],obj['benchmark'])
+        report['synthetic_market_a']=market
+        report['engine_a']=market['status']
+        report['warnings'].append('Engine A is synthetic mathematical demonstration only; no licensed stock/index data.')
     report['canonical_audit'] = {
         'schema': canonical['canonical']['schema'],
         'validated_rows': canonical['canonical']['rows'],
@@ -39,12 +83,26 @@ def main(argv=None):
     p.add_argument('--output-dir',type=Path,required=True)
     p.add_argument('--name',default='review')
     p.add_argument('--statement',choices=['CFS','OFS'],default='CFS')
+    p.add_argument('--peer-source',type=Path,help='Optional lawful peer filing; no sector equivalence is assumed')
+    p.add_argument('--peer-issuer-id',help='Official peer issuer ID, required with --peer-source')
+    p.add_argument('--synthetic-sector-code',help='Explicit synthetic test code only; not industry authentication')
+    p.add_argument('--synthetic-market-file',type=Path,help='Only synthetic price/index JSON; never real market data')
+    p.add_argument('--pdf',action='store_true',help='Optional printable PDF (requires ReportLab); no Unicode font bundled')
     args=p.parse_args(argv)
+    if bool(args.peer_source) != bool(args.peer_issuer_id):
+        p.error('PEER_SOURCE_AND_ID_REQUIRED_TOGETHER')
     if args.source.is_symlink() or not args.source.is_file() or args.source.stat().st_size>1_000_000:
         p.error('SOURCE_FILE_INVALID')
     try:
-        report=analyze_bytes(args.source.read_bytes(),country=args.country,issuer_id=args.issuer_id,as_of=args.as_of,statement=args.statement)
-        r=export_local(report,args.output_dir,args.name)
+        def safe_read(path):
+            if path is None:return None
+            if path.is_symlink() or not path.is_file() or path.stat().st_size>1_000_000:
+                raise ValueError('OPTIONAL_SOURCE_FILE_INVALID')
+            return path.read_bytes()
+        peers=((safe_read(args.peer_source),args.peer_issuer_id),) if args.peer_source else ()
+        market=safe_read(args.synthetic_market_file)
+        report=analyze_bytes(args.source.read_bytes(),country=args.country,issuer_id=args.issuer_id,as_of=args.as_of,statement=args.statement,peer_inputs=peers,synthetic_sector_code=args.synthetic_sector_code,synthetic_market_raw=market)
+        r=export_local(report,args.output_dir,args.name,pdf=args.pdf)
     except (ValueError,KeyError,OSError) as exc:
         p.error(str(exc))
     print(json.dumps({'guard':report['guard'],'artifacts':r},ensure_ascii=False))

@@ -1,0 +1,2 @@
+# P70 optional PDF output, explicit dependency for cross-OS CI, not an OS font license
+reportlab>=4.2,<5

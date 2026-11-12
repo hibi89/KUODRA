@@ -47,8 +47,8 @@ class USAdapter(unittest.TestCase):
     def test_us_conflicting_10ka_rejected(self):
         data=json.loads(US.read_text())
         rows=data['facts']['us-gaap']['NetIncomeLoss']['units']['USD']
-        bad=dict(rows[-1]);bad['form']='10-K/A';bad['val']+=1;bad['accn']='0000000-25-999998';rows.append(bad)
-        with self.assertRaisesRegex(ValueError,'SEC_CONFLICTING'):
+        bad=dict(rows[-1]);bad['form']='10-K/A';bad['val']+=1;bad['accn']='0009999888-25-999998';rows.append(bad)
+        with self.assertRaisesRegex(ValueError,'RECONCILIATION_SAME_DAY_CONFLICT'):
             parse_sec_companyfacts(json.dumps(data).encode(),issuer_id=US_ID,as_of='2025-11-12')
     def test_us_filing_without_dates_fails(self):
         data=json.loads(US.read_text());data['facts']['us-gaap']['Revenues']['units']['USD'][0]['filed']='2025-99-99'
@@ -74,7 +74,7 @@ class KRAdapter(unittest.TestCase):
             parse_dart_annual(json.dumps(data).encode(),issuer_id=KR_ID,as_of='2025-11-12')
     def test_kr_duplicate_conflict(self):
         data=json.loads(KR.read_text());bad=dict(data['list'][0]);bad['thstrm_amount']='33';data['list'].append(bad)
-        with self.assertRaisesRegex(ValueError,'DART_CONFLICTING'):
+        with self.assertRaisesRegex(ValueError,'RECONCILIATION_SAME_DAY_CONFLICT'):
             parse_dart_annual(json.dumps(data).encode(),issuer_id=KR_ID,as_of='2025-11-12')
 
 class Integration(unittest.TestCase):
