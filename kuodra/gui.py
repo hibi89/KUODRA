@@ -20,8 +20,8 @@ def run_selected(*,country:str,issuer_id:str,as_of:str,source:str,output_dir:str
     return report,result
 
 
-def main():
-    """Local-only desktop screen; no official API calls or financial advice."""
+def main(*, smoke_only:bool=False):
+    """Local-only desktop screen; smoke_only inspects actual Tk widgets then exits."""
     import re
     import tkinter as tk
     from tkinter import filedialog, messagebox, ttk
@@ -206,6 +206,48 @@ def main():
     ttk.Label(container,
         text='No automatic API access, no trading, no investment advice  |  Developer evaluation only',
         style='QSubtitle.TLabel').pack(anchor='w',pady=(16,0))
+    if smoke_only:
+        # Real Windows host/window test, without file/network access, clicks
+        # or private data. It proves only toolkit initialization and layout.
+        try:
+            root.update_idletasks()
+            root.update()
+            def texts(widget):
+                values=[]
+                try:
+                    v=widget.cget('text')
+                    if v: values.append(str(v))
+                except tk.TclError:
+                    pass
+                for child in widget.winfo_children():
+                    values.extend(texts(child))
+                return values
+            labels=texts(root)
+            required=(
+                'KUODRA','Official issuer ID','As-of date',
+                'Financial statements','DART fiscal end (if needed)',
+                'Local financial JSON','Export directory',
+                'Analyze local source','Open HTML','Verify export',
+                'OFFLINE STAGING  ·  GUARD HOLD'
+            )
+            missing=[label for label in required if label not in labels]
+            if missing:
+                raise RuntimeError('GUI_MISSING_REQUIRED_CONTROLS')
+            if country.get() != 'KR' or issuer.get() or dart_scope.get():
+                raise RuntimeError('GUI_UNSAFE_DEFAULTS')
+            return {
+                'schema':'kuodra.windows-gui-smoke.v1',
+                'status':'TK_WINDOW_RENDERED_NO_NETWORK',
+                'window_width':root.winfo_width(),
+                'window_height':root.winfo_height(),
+                'required_control_count':len(required),
+                'missing_controls':0,
+                'user_data_loaded':False,
+                'network_requests':0,
+                'consumer_release_ready':False,
+            }
+        finally:
+            root.destroy()
     root.mainloop()
 
 
