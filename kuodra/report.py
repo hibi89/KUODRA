@@ -66,19 +66,15 @@ def export_local(report:dict,output_dir:Path,stem:str='review', *, pdf:bool=Fals
     paths={ext:root/(stem+'.receipt.json' if ext=='receipt' else stem+'.'+ext)
            for ext in all_files}
     if any(p.exists() or p.is_symlink() for p in paths.values()):raise FileExistsError('OUTPUT_EXISTS_NO_OVERWRITE')
-    created=[]
-    try:
-        for ext,bytes_ in all_files.items():
-            fd=os.open(paths[ext],os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
-            created.append(paths[ext])
-            with os.fdopen(fd,'wb') as f:
-                f.write(bytes_)
-                f.flush();os.fsync(f.fileno())
-    except Exception:
-        for p in created:
-            try:p.unlink(missing_ok=True)
-            except OSError:pass
-        raise
+    # Fail closed and never delete paths after a partial write: an untrusted
+    # process may have replaced one of those paths between creation and rollback.
+    # Incomplete bundles remain for explicit owner review; retry cannot replace
+    # them because O_EXCL and the preflight checks reject existing paths.
+    for ext,bytes_ in all_files.items():
+        fd=os.open(paths[ext],os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+        with os.fdopen(fd,'wb') as file:
+            file.write(bytes_)
+            file.flush();os.fsync(file.fileno())
     # Backward compatible: return only the requested report artifacts.
     # The independently checkable unsigned receipt is <stem>.receipt.json.
     return {ext:{'path':str(paths[ext]),'sha256':sha256(data_).hexdigest()} for ext,data_ in files.items()}
