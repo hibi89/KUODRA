@@ -70,8 +70,30 @@ def main(*, smoke_only:bool=False):
     style.map('QCheck.TCheckbutton',background=[('active',CARD)],
               foreground=[('active',TEXT)])
 
-    container=ttk.Frame(root,style='Q.TFrame',padding=(28,22))
-    container.pack(fill='both',expand=True)
+    # Keep critical actions reachable on smaller laptop screens. Unlike a
+    # fixed-height form, the complete interface can scroll without clipping.
+    host=ttk.Frame(root,style='Q.TFrame')
+    host.pack(fill='both',expand=True)
+    canvas=tk.Canvas(host,bg=BG,borderwidth=0,highlightthickness=0)
+    scroll=ttk.Scrollbar(host,orient='vertical',command=canvas.yview)
+    canvas.configure(yscrollcommand=scroll.set)
+    scroll.pack(side='right',fill='y')
+    canvas.pack(side='left',fill='both',expand=True)
+    container=ttk.Frame(canvas,style='Q.TFrame',padding=(28,22))
+    canvas_item=canvas.create_window((0,0),window=container,anchor='nw')
+    def update_scroll_region(_event=None):
+        bounds=canvas.bbox('all')
+        if bounds:
+            canvas.configure(scrollregion=bounds)
+    def update_canvas_width(event):
+        canvas.itemconfigure(canvas_item,width=event.width)
+    container.bind('<Configure>',update_scroll_region)
+    canvas.bind('<Configure>',update_canvas_width)
+    def on_wheel(event):
+        delta=getattr(event,'delta',0)
+        if delta:
+            canvas.yview_scroll(-int(delta/abs(delta)),'units')
+    root.bind('<MouseWheel>',on_wheel)
     header=ttk.Frame(container,style='Q.TFrame')
     header.pack(fill='x',pady=(0,18))
     ttk.Label(header,text='KUODRA',style='QTitle.TLabel').grid(row=0,column=0,sticky='w')
@@ -235,6 +257,14 @@ def main(*, smoke_only:bool=False):
                 raise RuntimeError('GUI_MISSING_REQUIRED_CONTROLS')
             if country.get() != 'KR' or issuer.get() or dart_scope.get():
                 raise RuntimeError('GUI_UNSAFE_DEFAULTS')
+            # Simulate a customer reaching the action bar on a small screen.
+            canvas.yview_moveto(1.0)
+            root.update_idletasks()
+            root.update()
+            bottom=buttons.winfo_rooty()+buttons.winfo_height()
+            viewport_bottom=canvas.winfo_rooty()+canvas.winfo_height()
+            if bottom>viewport_bottom+3:
+                raise RuntimeError('GUI_ACTIONS_NOT_REACHABLE_AT_SCROLL_END')
             return {
                 'schema':'kuodra.windows-gui-smoke.v1',
                 'status':'TK_WINDOW_RENDERED_NO_NETWORK',
@@ -242,6 +272,8 @@ def main(*, smoke_only:bool=False):
                 'window_height':root.winfo_height(),
                 'required_control_count':len(required),
                 'missing_controls':0,
+                'critical_actions_reachable':True,
+                'scroll_canvas_initialized':True,
                 'user_data_loaded':False,
                 'network_requests':0,
                 'consumer_release_ready':False,
