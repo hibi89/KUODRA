@@ -6,13 +6,16 @@ from kuodra.report import export_local
 from kuodra.safe_io import read_bounded_local, source_limit_for
 
 
-def run_selected(*,country:str,issuer_id:str,as_of:str,source:str,output_dir:str,name:str='review',statement:str='CFS',pdf:bool=False,language:str='en'):
+def run_selected(*,country:str,issuer_id:str,as_of:str,source:str,output_dir:str,name:str='review',statement:str='CFS',pdf:bool=False,language:str='en',
+                 dart_fiscal_end:str|None=None,dart_scope_attested:bool=False):
     p=Path(source)
     limit=source_limit_for(country)
     if p.is_symlink() or not p.is_file() or p.stat().st_size>limit:
         raise ValueError('SOURCE_FILE_INVALID')
     report=analyze_bytes(read_bounded_local(p,limit=limit),
-                         country=country,issuer_id=issuer_id,as_of=as_of,statement=statement)
+                         country=country,issuer_id=issuer_id,as_of=as_of,
+                         statement=statement,dart_fiscal_end=dart_fiscal_end,
+                         dart_request_fs_div_bound=dart_scope_attested)
     result=export_local(report,Path(output_dir),name,pdf=pdf,html_language=language)
     return report,result
 
@@ -89,6 +92,8 @@ def main():
     name=tk.StringVar(value='review')
     pdf=tk.BooleanVar(value=False)
     language=tk.StringVar(value='ko')
+    dart_end=tk.StringVar(value='')
+    dart_scope=tk.BooleanVar(value=False)
     status=tk.StringVar(value='Source must be authorized and local. No network requests or trades.')
 
     def row(i,title,var,*,values=None,browse=None):
@@ -117,21 +122,28 @@ def main():
 
     def changed_country(*_):
         issuer.set('')  # Never pre-populate a synthetic company as real
+        dart_end.set('')
+        dart_scope.set(False)
     country.trace_add('write',changed_country)
 
     row(0,'Country',country,values=('KR','US'))
     row(1,'Official issuer ID',issuer)
     row(2,'As-of date',asof)
     row(3,'Financial statements',statement,values=('CFS','OFS'))
-    row(4,'Local financial JSON',src,browse=choose_source)
-    row(5,'Export directory',out,browse=choose_output)
-    row(6,'New export filename',name)
-    row(7,'HTML language',language,values=('ko','en'))
+    row(4,'DART fiscal end (if needed)',dart_end)
+    row(5,'Local financial JSON',src,browse=choose_source)
+    row(6,'Export directory',out,browse=choose_output)
+    row(7,'New export filename',name)
+    row(8,'HTML language',language,values=('ko','en'))
     card.columnconfigure(1,weight=1)
 
     ttk.Checkbutton(card,text='Include PDF (ASCII labels only; Korean font gate pending)',
                     variable=pdf,style='QCheck.TCheckbutton').grid(
-                        row=8,column=1,columnspan=2,sticky='w',pady=(10,0))
+                        row=9,column=1,columnspan=2,sticky='w',pady=(9,0))
+    ttk.Checkbutton(card,
+        text='I confirm DART JSON request scope (CFS/OFS); not official authentication',
+        variable=dart_scope,style='QCheck.TCheckbutton').grid(
+            row=10,column=1,columnspan=2,sticky='w',pady=(5,0))
 
     footer=ttk.Frame(container,style='Q.TFrame')
     footer.pack(fill='x',pady=(18,4))
@@ -155,7 +167,9 @@ def main():
             report,paths=run_selected(
                 country=country.get(),issuer_id=issuer.get(),
                 as_of=asof.get(),statement=statement.get(),source=src.get(),
-                output_dir=out.get(),name=name.get(),pdf=pdf.get(),language=language.get())
+                output_dir=out.get(),name=name.get(),pdf=pdf.get(),language=language.get(),
+                dart_fiscal_end=dart_end.get().strip() or None,
+                dart_scope_attested=dart_scope.get())
             saved.update(html=Path(paths['html']['path']),dir=out.get(),name=name.get())
             status.set('HOLD — '+str(len(report['findings']))+
                 ' conditional metrics; local HTML/JSON'+('/PDF' if pdf.get() else '')+
