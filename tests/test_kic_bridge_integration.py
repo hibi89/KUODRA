@@ -30,6 +30,20 @@ class KICBridgeTests(unittest.TestCase):
         self.assertEqual(converted['original_country'], 'KR')
         self.assertTrue(all(r['unit'] == 'KRW' for r in converted['canonical']['records']))
 
+    def test_cli_uses_kic_canonical_for_both_countries(self):
+        from kuodra.cli import analyze_bytes
+        for country,issuer,path in [('KR','99998888','kr_dart.json'),('US','0009999888','us_companyfacts.json')]:
+            with self.subTest(country=country):
+                raw=(ROOT / 'fixtures/synthetic' / path).read_bytes()
+                report=analyze_bytes(raw,country=country,issuer_id=issuer,as_of='2025-03-01')
+                audit=report['canonical_audit']
+                self.assertEqual(audit['schema'],'kuodra.canonical.long.v1')
+                self.assertEqual(audit['validated_rows'],14)
+                self.assertFalse(audit['source_authenticated'])
+                self.assertFalse(audit['commercial_rights_verified'])
+                self.assertFalse(audit['private_data_exported'])
+                self.assertEqual(report['guard'],'HOLD')
+
     def test_mixed_country_rejected(self):
         kr = parse_dart_annual((ROOT / 'fixtures/synthetic/kr_dart.json').read_bytes(),issuer_id='99998888',as_of='2025-03-01')
         us = parse_sec_companyfacts((ROOT / 'fixtures/synthetic/us_companyfacts.json').read_bytes(),issuer_id='0009999888',as_of='2025-03-01')

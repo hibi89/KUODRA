@@ -7,12 +7,27 @@ from kuodra.markets.us.sec_local import parse_sec_companyfacts
 from kuodra.markets.kr.dart_local import parse_dart_annual
 from kuodra.review import build_review
 from kuodra.report import export_local
+from kuodra.kic_bridge import normalize_observations_via_kic
 
 
 def analyze_bytes(raw:bytes,*,country:str,issuer_id:str,as_of:str,statement:str='CFS'):
     adapter={'US':parse_sec_companyfacts,'KR':parse_dart_annual}.get(country)
     if adapter is None:raise ValueError('COUNTRY_UNSUPPORTED')
-    return build_review(adapter(raw,issuer_id=issuer_id,as_of=as_of,statement=statement),as_of=as_of)
+    rows = adapter(raw,issuer_id=issuer_id,as_of=as_of,statement=statement)
+    # KIC canonical validation is mandatory before a report is exported.
+    # Nothing from the PRIVATE canonical raw rowset is copied to report output.
+    canonical = normalize_observations_via_kic(rows,as_of=as_of)
+    report = build_review(rows,as_of=as_of)
+    report['canonical_audit'] = {
+        'schema': canonical['canonical']['schema'],
+        'validated_rows': canonical['canonical']['rows'],
+        'source_sha256': canonical['original_source_sha256'],
+        'canonical_input_sha256': canonical['canonical_input_sha256'],
+        'source_authenticated': False,
+        'commercial_rights_verified': False,
+        'private_data_exported': False,
+    }
+    return report
 
 
 def main(argv=None):
