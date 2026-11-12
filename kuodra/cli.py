@@ -14,6 +14,7 @@ from kuodra.contracts import bounded_json
 from kuodra.exploration import explore_local_cross_section
 from kuodra.heldout import evaluate_synthetic_heldout
 from kuodra.release_gate import verify_evidence_bundle
+from kuodra.safe_io import read_bounded_local
 
 
 def analyze_bytes(raw:bytes,*,country:str,issuer_id:str,as_of:str,statement:str='CFS',
@@ -131,13 +132,13 @@ def main(argv=None):
             if path is None:return None
             if path.is_symlink() or not path.is_file() or path.stat().st_size>1_000_000:
                 raise ValueError('OPTIONAL_SOURCE_FILE_INVALID')
-            return path.read_bytes()
+            return read_bounded_local(path)
         peers=((safe_read(args.peer_source),args.peer_issuer_id),) if args.peer_source else ()
         market=safe_read(args.synthetic_market_file)
         stats=safe_read(args.stats_source)
         heldout=safe_read(args.synthetic_heldout_source)
         metrics=tuple(args.stats_metrics.split(',')) if args.stats_metrics else ()
-        report=analyze_bytes(args.source.read_bytes(),country=args.country,issuer_id=args.issuer_id,as_of=args.as_of,statement=args.statement,peer_inputs=peers,synthetic_sector_code=args.synthetic_sector_code,synthetic_market_raw=market,owner_stats_raw=stats,stats_metrics=metrics,stats_observation_at=args.stats_observation,stats_owner_consent=args.stats_consent,synthetic_heldout_raw=heldout,heldout_owner_consent=args.heldout_consent)
+        report=analyze_bytes(read_bounded_local(args.source),country=args.country,issuer_id=args.issuer_id,as_of=args.as_of,statement=args.statement,peer_inputs=peers,synthetic_sector_code=args.synthetic_sector_code,synthetic_market_raw=market,owner_stats_raw=stats,stats_metrics=metrics,stats_observation_at=args.stats_observation,stats_owner_consent=args.stats_consent,synthetic_heldout_raw=heldout,heldout_owner_consent=args.heldout_consent)
         r=export_local(report,args.output_dir,args.name,pdf=args.pdf)
         integrity=verify_evidence_bundle(args.output_dir,args.name,require_pdf=args.pdf)
         for kind,details in r.items():
