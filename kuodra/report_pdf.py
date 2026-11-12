@@ -97,6 +97,15 @@ def render_pdf_bytes(report: dict) -> bytes:
         market=report['synthetic_market_a']
         flow.append(Paragraph('Synthetic price/index demonstration only',styles['Heading2']))
         flow.append(Paragraph('Stock '+ascii_text(market['stock_total_return'])+' / benchmark '+ascii_text(market['benchmark_total_return'])+' / beta '+ascii_text(market['beta']),styles['SmallEvidence']))
+    stats=report.get('exploratory_statistics')
+    if stats:
+        flow.append(Paragraph('Owner-local exploratory FDR (not a prediction)',styles['Heading2']))
+        flow.append(Paragraph('Status: '+ascii_text(stats['status'])+'; guard HOLD; model trained false.',styles['SmallEvidence']))
+        for item in stats.get('insights',[]):
+            flow.append(Paragraph(ascii_text(item['metric_a'])+' / '+ascii_text(item['metric_b'])+
+                                  ' | paired '+ascii_text(item['paired_n'])+
+                                  ' | r '+ascii_text(item['pearson_r'])+
+                                  ' | adjusted q '+ascii_text(item['q_bh_fdr']),styles['SmallEvidence']))
     rev=report.get('revision_audit',[])
     if rev:
         flow.append(Paragraph('As-of filing revisions (latest dated filing selected)',styles['Heading2']))

@@ -26,7 +26,7 @@ def parse_sec_companyfacts(raw: bytes, *, issuer_id: str, as_of: str,
                            statement: str = 'CFS', with_audit: bool = False):
     validate_entity('US', issuer_id)
     cutoff=parse_date(as_of)
-    obj=bounded_json(raw)
+    obj=bounded_json(raw,max_bytes=10_000_000)
     if type(obj.get('cik')) is not int or obj['cik'] != int(issuer_id):
         raise ValueError('SEC_CIK_MISMATCH')
     if statement not in ('CFS','OFS'):
