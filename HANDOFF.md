@@ -1,3 +1,15 @@
+## 2026-11-13 KST — P95 사용자 지시 중단 / 사용자 개입 필요 (10항)
+1. **목표/용도/기술:** `KUODRA` KR OpenDART·US SEC 재무 근거 분석 로컬 Windows, A/B/C·ML·Guard·HTML/PDF. 최종 100점 설계 고정; P95는 실데이터·실사용 검증 포함.
+2. **완료/변경/판단:** 기존 89% 잠정, 이번 PR #7 IS/CIS 매출·순이익 표 호환 및 동일 공시 충돌 차단; 소형 GUI 세로 스크롤/Windows frozen Tk 컨트롤 smoke 추가. **형 개입 없이 P95 확정 불가 판정 후 사용자 지시로 중단**. 코드 변경을 판매 완료로 표시하지 않음.
+3. **테스트:** PR #7 feature SHA `49d78a013ad51495d8facc0d82e3c2103a2ae99d`, Actions #43302772793 Ubuntu 282/282·Windows 282/282 PASS, Windows EXE GUI smoke/ZIP 검증 PASS. PR7 merge SHA `733104a08fb99f4baf5bf4be520b0f7d88729f56`; **후속 병합 SHA 별도 실행 검증 미확인**. 실기업/실고객 테스트 0.
+4. **완료/진행/대기/차단:** 내부 엔지니어링 **89% 잠정**, P95 **미달**, 개발 **PAUSED**, `[사용자 개입 필요]`, `RELEASE HOLD/SALE NO-GO`; Production 없음. P95 작업중 표시는 해제하되 목표 달성으로 오인하지 말 것.
+5. **오류/근거/시도/대안:** 공식 DART IS/CIS 호환성 결함 수정; 합성·모의 CI만으론 SEC/DART 발행기관·라이선스·고객 장비를 증명 불가. 사용자 보유 적법 자료/키와 실제 PC에서 최종 검증, 또는 상용화 범위 재설계 후 별도 승인. 키나 비공개 원본 채팅/GitHub 공유 금지.
+6. **저장소/브랜치/SHA/경로:** `hibi89/KUODRA` private, `develop` PR7 병합 SHA `733104a08fb99f4baf5bf4be520b0f7d88729f56`, `main` 문서 기준, `docs/P95_DART_CIS_AND_WINDOWS_GUI_PROOF_20261113.md`, `docs/P95_FOLLOWUP_EVIDENCE_20261113.md`, `STATUS.md`, `HANDOFF.md`. 허브 `hibi89/hackathon-command-center-2026@kmong-productization`.
+7. **Production/실행/환경:** 배포 N/A, Windows Actions Python3.11 PyInstaller unsigned ZIP, 실제 Win10/11 구매자 설치/서명 없음; 로컬 unittest와 실제 공식 API 검증은 별개.
+8. **원본/백업/인증:** KIC 원본 `hibi89/hibi89-kic-proofinvest@lead/kic` 불변. Git history로 이전 source 복원 가능; 실제 SEC 연락처·DART 키·고객 데이터 저장/전송 없음.
+9. **다음 우선순위/승인:** 실제 합법 SEC+DART 각 1건 원문/계정/결산일/권리 검증 → Windows10/11 실사용 한글 GUI/PDF·설치/제거 → 전체 DLL/모델 라이선스 및 금융 규제·환불 → 사용자 SALE GO. 사전 승인 없이 외부 계정·결제·소스권한·배포 변경 금지. **사용자가 재개 지시 전 자동 개발 금지.**
+10. **확인 시점/범위:** 2026-11-13 KST, PR7 기능 브랜치 CI 282/282 OS별 기록 확인, 실기업·실구매자·상용 라이선스/법률 미검증. 중단 메모 저장 후 HEAD 재조회 필요.
+
 ## 2026-11-13 KST — Post-merge validation confirmed: [Actions #43300053991](https://github.com/hibi89/KUODRA/actions/runs/43300053991) — Ubuntu 275/275 PASS, Windows 275/275 PASS, Windows portable staging install/verify/explicit uninstall + protected original PASS, source code merge `8b8801991870f1a98117b68bd23ed2e99c77cacb`. P95 goal unmet, 89% provisional engineering, RELEASE HOLD. Later documentation-only commits do not represent newly tested functional SHA.
 
 # KUODRA P95 follow-up handoff — 2026-11-13 KST — 89/100 provisional, P95 NOT attained
